@@ -5,7 +5,7 @@
 
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
   <a class="btn sm" href="/portal/loads">← Your loads</a>
-  <span class="status <%= l.status %>"><%= l.status.replace('_',' ') %></span>
+  <% if(l.col_name){ %><span class="status" style="background:<%= (l.col_color||'#888') %>26;color:<%= l.col_color||'#9a9ba3' %>"><%= l.col_name %></span><% } else { %><span class="status <%= l.status %>"><%= l.status.replace('_',' ') %></span><% } %>
 </div>
 <h1><%= l.ref || ('Load #' + l.id) %></h1>
 <p class="sub"><%= l.origin || '—' %> → <%= l.destination || '—' %> · <%= money(l.rate) %></p>

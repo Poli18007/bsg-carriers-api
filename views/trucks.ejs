@@ -1,0 +1,35 @@
+<% var title='Trucks — BSG Carriers'; var active='trucks'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Trucks</h1>
+  <a class="btn gold spacer" href="/admin/trucks/new">+ Add truck</a>
+</div>
+<p class="sub">Your fleet roster — each truck ties to a carrier and driver, and shows its current load.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="n"><%= counts.total %></div><div class="l">Trucks</div></div>
+  <div class="kpi accent"><div class="n"><%= counts.in_service %></div><div class="l">In service</div></div>
+  <div class="kpi"><div class="n"><%= counts.total - counts.in_service %></div><div class="l">Out of service</div></div>
+</div>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Truck #</th><th>Carrier</th><th>Driver</th><th>Current load</th><th>Plate</th><th>Status</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="6" class="muted" style="padding:28px;text-align:center">No trucks yet. <a href="/admin/trucks/new">Add one</a>.</td></tr><% } %>
+      <% rows.forEach(function(t){ %>
+        <tr class="row" onclick="location.href='/admin/trucks/<%= t.id %>'">
+          <td><strong><%= t.number %></strong><% if(t.make_model){ %><div class="muted" style="font-size:11px"><%= t.make_model %></div><% } %></td>
+          <td class="muted"><%= t.carrier_name || 'BSG' %></td>
+          <td class="muted"><%= t.driver_name || '—' %></td>
+          <td><% if(t.load_ref){ %><a href="/admin/loads/<%= t.load_id %>" onclick="event.stopPropagation()"><%= t.load_ref %></a><% } else { %><span class="muted">—</span><% } %></td>
+          <td class="muted"><%= t.plate || '—' %></td>
+          <td><span class="tag <%= t.in_service?'approved':'cancelled' %>"><%= t.in_service?'in service':'out of service' %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

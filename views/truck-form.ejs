@@ -1,0 +1,44 @@
+<% var title=(isNew?'Add truck':'Truck '+truck.number)+' — BSG Carriers'; var active='trucks'; var t=truck||{}; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/trucks">← Trucks</a>
+  <h1 style="margin-left:4px"><%= isNew ? 'Add a truck' : ('Truck ' + t.number) %></h1>
+  <% if (!isNew) { %><span class="tag <%= t.in_service?'approved':'cancelled' %>"><%= t.in_service?'in service':'out of service' %></span><% } %>
+</div>
+
+<form method="post" action="<%= isNew ? '/admin/trucks' : '/admin/trucks/' + t.id %>" class="panel" style="max-width:760px;padding:20px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="field"><label>Truck #</label><input name="number" value="<%= t.number||'' %>" required></div>
+    <div class="field"><label>Carrier</label><select name="carrier_id"><option value="">— BSG / none —</option><% carriers.forEach(function(c){ %><option value="<%= c.id %>" <%= String(t.carrier_id)===String(c.id)?'selected':'' %>><%= c.company_name %></option><% }) %></select></div>
+    <div class="field"><label>Driver</label><select name="driver_id"><option value="">— none —</option><% drivers.forEach(function(d){ %><option value="<%= d.id %>" <%= String(t.driver_id)===String(d.id)?'selected':'' %>><%= d.name %> — <%= d.company_name %></option><% }) %></select></div>
+    <div class="field"><label>Make / model</label><input name="make_model" value="<%= t.make_model||'' %>" placeholder="Freightliner Cascadia"></div>
+    <div class="field"><label>Plate</label><input name="plate" value="<%= t.plate||'' %>"></div>
+    <div class="field"><label>VIN</label><input name="vin" value="<%= t.vin||'' %>"></div>
+    <div class="field"><label>In service</label><select name="in_service"><option value="1" <%= t.in_service!==false?'selected':'' %>>In service</option><option value="0" <%= t.in_service===false?'selected':'' %>>Out of service</option></select></div>
+  </div>
+  <div class="field"><label>Notes</label><input name="notes" value="<%= t.notes||'' %>"></div>
+  <button class="btn gold" type="submit"><%= isNew ? 'Add truck' : 'Save changes' %></button>
+</form>
+
+<% if (!isNew) { %>
+<div style="display:flex;gap:10px;align-items:center;max-width:760px;margin-top:12px">
+  <form method="post" action="/admin/trucks/<%= t.id %>/service" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit"><%= t.in_service?'Mark out of service':'Return to service' %></button></form>
+  <form method="post" action="/admin/trucks/<%= t.id %>/delete" style="margin:0 0 0 auto" onsubmit="return confirm('Archive this truck?')"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm danger" type="submit">Archive</button></form>
+</div>
+<% } %>
+
+<% if (!isNew && loads.length) { %>
+<h2 style="font-size:15px;margin-top:22px">Loads on this truck</h2>
+<div class="panel">
+  <table>
+    <thead><tr><th>Ref</th><th>Lane</th></tr></thead>
+    <tbody><% loads.forEach(function(l){ %>
+      <tr class="row" onclick="location.href='/admin/loads/<%= l.id %>'"><td><strong><%= l.ref||('#'+l.id) %></strong></td><td class="muted"><%= l.origin||'—' %> → <%= l.destination||'—' %></td></tr>
+    <% }) %></tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('partials/foot') %>

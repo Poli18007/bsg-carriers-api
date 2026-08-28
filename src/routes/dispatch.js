@@ -181,8 +181,12 @@ router.get('/board', async (req, res) => {
   const columns = await getColumns(board.id);
   const [rows] = await pool.query(
     `SELECT l.id, l.ref, l.customer, l.origin, l.destination, l.rate, l.column_id, l.pickup_date,
-            c.company_name AS carrier_name, lb.name AS label_name, lb.color AS label_color
-       FROM loads l LEFT JOIN carriers c ON c.id=l.carrier_id LEFT JOIN labels lb ON lb.id=l.label_id
+            c.company_name AS carrier_name, lb.name AS label_name, lb.color AS label_color,
+            su.name AS dispatcher_name, tk.number AS truck_number, tr.number AS trailer_number
+       FROM loads l
+       LEFT JOIN carriers c ON c.id=l.carrier_id LEFT JOIN labels lb ON lb.id=l.label_id
+       LEFT JOIN staff_users su ON su.id=l.dispatcher_id
+       LEFT JOIN trucks tk ON tk.id=l.truck_id LEFT JOIN trailers tr ON tr.id=l.trailer_id
        ORDER BY l.pickup_date NULLS LAST, l.id DESC LIMIT 500`);
   const byCol = {}; columns.forEach((c) => { byCol[c.id] = []; });
   rows.forEach((l) => { if (byCol[l.column_id]) byCol[l.column_id].push(l); });
@@ -212,13 +216,17 @@ async function formData() {
   const [columns] = await pool.query('SELECT id, name FROM board_columns WHERE board_id = ? ORDER BY sort, id', [board.id]);
   const [labels] = await pool.query('SELECT id, name, color FROM labels ORDER BY sort, id');
   const [dispatchers] = await pool.query('SELECT id, name FROM staff_users WHERE active ORDER BY name');
-  return { brokers, carriers, drivers, columns, labels, dispatchers };
+  const [customers] = await pool.query('SELECT id, name FROM customers ORDER BY name');
+  const [trucks] = await pool.query('SELECT id, number FROM trucks WHERE active ORDER BY number');
+  const [trailers] = await pool.query('SELECT id, number FROM trailers WHERE active ORDER BY number');
+  return { brokers, carriers, drivers, columns, labels, dispatchers, customers, trucks, trailers };
 }
 
 function loadValues(b) {
   return {
     ref: clip(b.ref, 60), broker_id: intOrNull(b.broker_id), carrier_id: intOrNull(b.carrier_id), driver_id: intOrNull(b.driver_id),
     column_id: intOrNull(b.column_id), label_id: intOrNull(b.label_id), dispatcher_id: intOrNull(b.dispatcher_id),
+    customer_id: intOrNull(b.customer_id), truck_id: intOrNull(b.truck_id), trailer_id: intOrNull(b.trailer_id),
     customer: clip(b.customer, 200), pu_number: clip(b.pu_number, 60),
     origin: lane(b.pickup_city, b.pickup_state), destination: lane(b.delivery_city, b.delivery_state),
     pickup_name: clip(b.pickup_name, 200), pickup_address: clip(b.pickup_address, 255), pickup_city: clip(b.pickup_city, 80),
@@ -231,14 +239,16 @@ function loadValues(b) {
     miles: intOrNull(b.miles), rate: num(b.rate), status: LOAD_STATUSES.includes(b.status) ? b.status : 'booked', notes: clip(b.notes, 4000),
   };
 }
-const LOAD_COLS = ['ref', 'broker_id', 'carrier_id', 'driver_id', 'column_id', 'label_id', 'dispatcher_id', 'customer', 'pu_number',
+const LOAD_COLS = ['ref', 'broker_id', 'carrier_id', 'driver_id', 'column_id', 'label_id', 'dispatcher_id',
+  'customer_id', 'truck_id', 'trailer_id', 'customer', 'pu_number',
   'origin', 'destination', 'pickup_name', 'pickup_address', 'pickup_city',
   'pickup_state', 'pickup_zip', 'pickup_appt', 'pickup_ref', 'pickup_instructions', 'delivery_name', 'delivery_address', 'delivery_city',
   'delivery_state', 'delivery_zip', 'delivery_appt', 'delivery_ref', 'delivery_instructions', 'commodity', 'weight', 'equipment', 'miles', 'rate', 'status', 'notes'];
 
 router.get('/loads/new', async (req, res) => {
   const fd = await formData();
-  res.render('load-form', { user: req.session.user, load: { status: 'booked' }, ...fd, statuses: LOAD_STATUSES, csrfToken: req.csrfToken(), isNew: true, docs: [], accessorials: [], events: [], owed: null });
+  const load = { status: 'booked', column_id: intOrNull(req.query.column) };
+  res.render('load-form', { user: req.session.user, load, ...fd, statuses: LOAD_STATUSES, csrfToken: req.csrfToken(), isNew: true, docs: [], accessorials: [], events: [], owed: null });
 });
 
 router.post('/loads', async (req, res) => {
@@ -333,6 +343,181 @@ router.post('/loads/:id/events', async (req, res) => {
   const body = clip(req.body.body, 1000);
   if (body) await logEvent(req.params.id, req.session.user.email, kind, body);
   res.redirect('/admin/loads/' + req.params.id);
+});
+
+// ===========================================================================
+// Trucks (Phase C) — fleet roster, tied to a carrier + driver, current load
+// ===========================================================================
+function truckValues(b) {
+  return {
+    number: clip(b.number, 40) || 'Unnumbered', carrier_id: intOrNull(b.carrier_id), driver_id: intOrNull(b.driver_id),
+    plate: clip(b.plate, 40), vin: clip(b.vin, 60), make_model: clip(b.make_model, 120),
+    in_service: String(b.in_service) !== '0', notes: clip(b.notes, 2000), column_id: intOrNull(b.column_id),
+  };
+}
+const TRUCK_COLS = ['number', 'carrier_id', 'driver_id', 'plate', 'vin', 'make_model', 'in_service', 'notes', 'column_id'];
+
+async function truckPickers() {
+  const [carriers] = await pool.query("SELECT id, company_name FROM carriers WHERE status <> 'rejected' ORDER BY company_name");
+  const [drivers] = await pool.query('SELECT d.id, d.name, c.company_name FROM drivers d JOIN carriers c ON c.id=d.carrier_id WHERE d.active ORDER BY c.company_name, d.name');
+  return { carriers, drivers };
+}
+
+router.get('/trucks', async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT t.*, c.company_name AS carrier_name, d.name AS driver_name,
+            (SELECT l.ref FROM loads l WHERE l.truck_id=t.id ORDER BY l.id DESC LIMIT 1) AS load_ref,
+            (SELECT l.id  FROM loads l WHERE l.truck_id=t.id ORDER BY l.id DESC LIMIT 1) AS load_id
+       FROM trucks t LEFT JOIN carriers c ON c.id=t.carrier_id LEFT JOIN drivers d ON d.id=t.driver_id
+       WHERE t.active ORDER BY t.in_service DESC, t.number`);
+  const [[counts]] = await pool.query(
+    `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE in_service)::int AS in_service FROM trucks WHERE active`);
+  res.render('trucks', { user: req.session.user, rows, counts });
+});
+router.get('/trucks/new', async (req, res) => {
+  const p = await truckPickers();
+  res.render('truck-form', { user: req.session.user, truck: { in_service: true }, ...p, loads: [], csrfToken: req.csrfToken(), isNew: true });
+});
+router.post('/trucks', async (req, res) => {
+  const v = truckValues(req.body || {});
+  const [rows] = await pool.query(
+    `INSERT INTO trucks (${TRUCK_COLS.join(',')}) VALUES (${TRUCK_COLS.map(() => '?').join(',')}) RETURNING id`,
+    TRUCK_COLS.map((k) => v[k]));
+  res.redirect('/admin/trucks/' + rows[0].id);
+});
+router.get('/trucks/:id', async (req, res) => {
+  const [rows] = await pool.query('SELECT * FROM trucks WHERE id = ? LIMIT 1', [req.params.id]);
+  if (!rows[0]) return res.status(404).send('Not found');
+  const p = await truckPickers();
+  const [loads] = await pool.query('SELECT id, ref, origin, destination FROM loads WHERE truck_id = ? ORDER BY id DESC LIMIT 20', [req.params.id]);
+  res.render('truck-form', { user: req.session.user, truck: rows[0], ...p, loads, csrfToken: req.csrfToken(), isNew: false });
+});
+router.post('/trucks/:id', async (req, res) => {
+  const v = truckValues(req.body || {});
+  await pool.query(`UPDATE trucks SET ${TRUCK_COLS.map((k) => k + '=?').join(', ')} WHERE id=?`, [...TRUCK_COLS.map((k) => v[k]), req.params.id]);
+  res.redirect('/admin/trucks/' + encodeURIComponent(req.params.id));
+});
+router.post('/trucks/:id/service', async (req, res) => {
+  await pool.query('UPDATE trucks SET in_service = NOT in_service WHERE id = ?', [req.params.id]);
+  res.redirect('/admin/trucks/' + encodeURIComponent(req.params.id));
+});
+router.post('/trucks/:id/delete', async (req, res) => {
+  await pool.query('UPDATE trucks SET active = false WHERE id = ?', [req.params.id]);
+  res.redirect('/admin/trucks');
+});
+
+// ===========================================================================
+// Customers (shippers) — a reusable record loads point at
+// ===========================================================================
+function customerValues(b) {
+  return {
+    name: clip(b.name, 200) || 'Unnamed', contact_name: clip(b.contact_name, 160), phone: clip(b.phone, 60), email: clip(b.email, 200),
+    address: clip(b.address, 255), city: clip(b.city, 80), state: clip(b.state, 20), zip: clip(b.zip, 20), notes: clip(b.notes, 2000),
+  };
+}
+const CUST_COLS = ['name', 'contact_name', 'phone', 'email', 'address', 'city', 'state', 'zip', 'notes'];
+
+router.get('/customers', async (req, res) => {
+  const q = (req.query.q || '').toString().trim().slice(0, 100);
+  const where = q ? 'WHERE name LIKE ? OR contact_name LIKE ? OR city LIKE ?' : '';
+  const params = q ? ['%' + q + '%', '%' + q + '%', '%' + q + '%'] : [];
+  const [rows] = await pool.query(
+    `SELECT c.*, (SELECT COUNT(*) FROM loads l WHERE l.customer_id=c.id)::int AS load_count
+       FROM customers c ${where} ORDER BY c.name LIMIT 300`, params);
+  res.render('customers', { user: req.session.user, rows, q });
+});
+router.get('/customers/new', (req, res) => res.render('customer-form', { user: req.session.user, customer: {}, csrfToken: req.csrfToken(), isNew: true }));
+router.post('/customers', async (req, res) => {
+  const v = customerValues(req.body || {});
+  const [rows] = await pool.query(
+    `INSERT INTO customers (${CUST_COLS.join(',')}) VALUES (${CUST_COLS.map(() => '?').join(',')}) RETURNING id`, CUST_COLS.map((k) => v[k]));
+  res.redirect('/admin/customers/' + rows[0].id);
+});
+router.get('/customers/:id', async (req, res) => {
+  const [rows] = await pool.query('SELECT * FROM customers WHERE id = ? LIMIT 1', [req.params.id]);
+  if (!rows[0]) return res.status(404).send('Not found');
+  const [loads] = await pool.query('SELECT id, ref, origin, destination, rate FROM loads WHERE customer_id = ? ORDER BY id DESC LIMIT 30', [req.params.id]);
+  res.render('customer-form', { user: req.session.user, customer: rows[0], loads, csrfToken: req.csrfToken(), isNew: false });
+});
+router.post('/customers/:id', async (req, res) => {
+  const v = customerValues(req.body || {});
+  await pool.query(`UPDATE customers SET ${CUST_COLS.map((k) => k + '=?').join(', ')} WHERE id=?`, [...CUST_COLS.map((k) => v[k]), req.params.id]);
+  res.redirect('/admin/customers/' + encodeURIComponent(req.params.id));
+});
+
+// ===========================================================================
+// Trailers (Phase D) — own board with editable columns + drag-drop
+// ===========================================================================
+const TRAILER_STATES = ['empty', 'loaded', 'damaged', 'maintenance'];
+function trailerValues(b) {
+  return {
+    number: clip(b.number, 40) || 'Unnumbered', alt_number: clip(b.alt_number, 40), type: clip(b.type, 60),
+    state: TRAILER_STATES.includes(b.state) ? b.state : 'empty', carrier_id: intOrNull(b.carrier_id),
+    notes: clip(b.notes, 2000), column_id: intOrNull(b.column_id),
+  };
+}
+const TRAILER_COLS = ['number', 'alt_number', 'type', 'state', 'carrier_id', 'notes', 'column_id'];
+
+router.get('/trailers', async (req, res) => {
+  const board = await getBoard('trailers');
+  const columns = await getColumns(board.id);
+  const [rows] = await pool.query(
+    `SELECT tr.*, c.company_name AS carrier_name,
+            (SELECT l.ref FROM loads l WHERE l.trailer_id=tr.id ORDER BY l.id DESC LIMIT 1) AS load_ref
+       FROM trailers tr LEFT JOIN carriers c ON c.id=tr.carrier_id WHERE tr.active ORDER BY tr.number`);
+  const byCol = {}; columns.forEach((c) => { byCol[c.id] = []; });
+  const orphan = [];
+  rows.forEach((t) => { if (byCol[t.column_id]) byCol[t.column_id].push(t); else if (columns[0]) byCol[columns[0].id].push(t); });
+  void orphan;
+  res.render('trailers-board', { user: req.session.user, board, columns, byCol, csrfToken: req.csrfToken() });
+});
+router.get('/trailers/list', async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT tr.*, c.company_name AS carrier_name, bc.name AS col_name,
+            (SELECT l.ref FROM loads l WHERE l.trailer_id=tr.id ORDER BY l.id DESC LIMIT 1) AS load_ref
+       FROM trailers tr LEFT JOIN carriers c ON c.id=tr.carrier_id LEFT JOIN board_columns bc ON bc.id=tr.column_id
+       WHERE tr.active ORDER BY tr.number`);
+  res.render('trailers', { user: req.session.user, rows });
+});
+router.get('/trailers/new', async (req, res) => {
+  const board = await getBoard('trailers');
+  const [carriers] = await pool.query("SELECT id, company_name FROM carriers WHERE status <> 'rejected' ORDER BY company_name");
+  const trailer = { state: 'empty', column_id: intOrNull(req.query.column) };
+  res.render('trailer-form', { user: req.session.user, trailer, carriers, states: TRAILER_STATES, boardId: board.id, csrfToken: req.csrfToken(), isNew: true });
+});
+router.post('/trailers', async (req, res) => {
+  const v = trailerValues(req.body || {});
+  if (!v.column_id) {
+    const board = await getBoard('trailers');
+    const [[first]] = await pool.query('SELECT id FROM board_columns WHERE board_id = ? ORDER BY sort, id LIMIT 1', [board.id]);
+    v.column_id = first ? first.id : null;
+  }
+  const [rows] = await pool.query(
+    `INSERT INTO trailers (${TRAILER_COLS.join(',')}) VALUES (${TRAILER_COLS.map(() => '?').join(',')}) RETURNING id`, TRAILER_COLS.map((k) => v[k]));
+  res.redirect('/admin/trailers/' + rows[0].id);
+});
+router.get('/trailers/:id', async (req, res) => {
+  const [rows] = await pool.query('SELECT * FROM trailers WHERE id = ? LIMIT 1', [req.params.id]);
+  if (!rows[0]) return res.status(404).send('Not found');
+  const board = await getBoard('trailers');
+  const [carriers] = await pool.query("SELECT id, company_name FROM carriers WHERE status <> 'rejected' ORDER BY company_name");
+  const [columns] = await pool.query('SELECT id, name FROM board_columns WHERE board_id = ? ORDER BY sort, id', [board.id]);
+  res.render('trailer-form', { user: req.session.user, trailer: rows[0], carriers, columns, states: TRAILER_STATES, boardId: board.id, csrfToken: req.csrfToken(), isNew: false });
+});
+router.post('/trailers/:id', async (req, res) => {
+  const v = trailerValues(req.body || {});
+  await pool.query(`UPDATE trailers SET ${TRAILER_COLS.map((k) => k + '=?').join(', ')} WHERE id=?`, [...TRAILER_COLS.map((k) => v[k]), req.params.id]);
+  res.redirect('/admin/trailers/' + encodeURIComponent(req.params.id));
+});
+router.post('/trailers/:id/column', async (req, res) => {
+  const colId = intOrNull(req.body.column_id);
+  if (colId) await pool.query('UPDATE trailers SET column_id = ? WHERE id = ?', [colId, req.params.id]);
+  if (req.get('x-requested-with') === 'fetch') return res.json({ ok: true });
+  res.redirect('/admin/trailers');
+});
+router.post('/trailers/:id/delete', async (req, res) => {
+  await pool.query('UPDATE trailers SET active = false WHERE id = ?', [req.params.id]);
+  res.redirect('/admin/trailers/list');
 });
 
 module.exports = router;

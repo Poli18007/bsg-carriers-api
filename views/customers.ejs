@@ -1,0 +1,33 @@
+<% var title='Customers — BSG Carriers'; var active='customers'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Customers</h1>
+  <a class="btn gold spacer" href="/admin/customers/new">+ Add customer</a>
+</div>
+<p class="sub">Shippers you dispatch for. Pick one on a load instead of retyping it.</p>
+
+<form method="get" action="/admin/customers" class="filters">
+  <input type="search" name="q" value="<%= q %>" placeholder="Search name, contact, city…">
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn" href="/admin/customers">Clear</a>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Name</th><th>Contact</th><th>Location</th><th>Loads</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="4" class="muted" style="padding:28px;text-align:center">No customers yet. <a href="/admin/customers/new">Add one</a>.</td></tr><% } %>
+      <% rows.forEach(function(c){ %>
+        <tr class="row" onclick="location.href='/admin/customers/<%= c.id %>'">
+          <td><strong><%= c.name %></strong></td>
+          <td class="muted"><%= c.contact_name || '—' %><% if(c.phone){ %> · <%= c.phone %><% } %></td>
+          <td class="muted"><%= [c.city, c.state].filter(Boolean).join(', ') || '—' %></td>
+          <td><%= c.load_count %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

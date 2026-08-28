@@ -63,7 +63,8 @@ async function seedBoard(name, kind, sort, columns) {
   return boardId;
 }
 
-const GOLD = '#DCB555', BLUE = '#7fb0e0', GREEN = '#4caf7d', GREY = '#9a9ba3', PURPLE = '#b0a0e0';
+// Brand palette is gold + black; positive states read as gold, not green.
+const GOLD = '#DCB555', BLUE = '#7fb0e0', GREEN = '#DCB555', GREY = '#9a9ba3', PURPLE = '#b0a0e0';
 const loadsBoard = await seedBoard('Loads', 'loads', 1, [
   ['Trucks', GREY, 'other'], ['Tendered', GOLD, 'active'], ['Ready', GOLD, 'active'],
   ['Assigned', BLUE, 'active'], ['Akal Yard', GREY, 'yard'], ['In Transit', BLUE, 'in_transit'],
@@ -79,7 +80,7 @@ await seedBoard('Trailers', 'trailers', 2, [
 
 const LABELS = [
   ['KLF Truck', '#e0a94f'], ['Owner Op', '#7fb0e0'], ['Exemplis OB', '#e6d27a'],
-  ['Backhaul', '#e08aa0'], ['CA Local', '#7fd0a0'], ['Other CA OB', '#c9c9c9'],
+  ['Backhaul', '#e08aa0'], ['CA Local', '#8fb0c0'], ['Other CA OB', '#c9c9c9'],
 ];
 for (let i = 0; i < LABELS.length; i++) {
   await client.query('INSERT INTO labels (name, color, sort) VALUES ($1,$2,$3) ON CONFLICT (name) DO NOTHING', [LABELS[i][0], LABELS[i][1], i]);
@@ -93,6 +94,10 @@ const colByName = Object.fromEntries(cols.map((c) => [c.name, c.id]));
 for (const [status, colName] of Object.entries(STATUS_TO_COLUMN)) {
   await client.query('UPDATE loads SET column_id = $1 WHERE column_id IS NULL AND status = $2', [colByName[colName], status]);
 }
+// Retire the old green seed colors (brand is gold + black). Only touches rows
+// still on the original green defaults — a color a user picked is left alone.
+await client.query("UPDATE board_columns SET color = '#DCB555' WHERE color = '#4caf7d'");
+await client.query("UPDATE labels SET color = '#8fb0c0' WHERE color = '#7fd0a0'");
 console.log('✓ boards, columns and labels seeded');
 
 const [{ rows: tables }] = [await client.query(

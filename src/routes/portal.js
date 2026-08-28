@@ -191,15 +191,20 @@ router.post('/documents/:id/delete', async (req, res) => {
 // --- Loads assigned to this carrier ----------------------------------------
 router.get('/loads', async (req, res) => {
   const [rows] = await pool.query(
-    `SELECT id, ref, origin, destination, pickup_date, delivery_date, rate, status
-       FROM loads WHERE carrier_id = ? AND status <> 'cancelled' ORDER BY pickup_date NULLS LAST, id DESC LIMIT 200`,
+    `SELECT l.id, l.ref, l.origin, l.destination, l.pickup_date, l.delivery_date, l.rate, l.status,
+            bc.name AS col_name, bc.color AS col_color
+       FROM loads l LEFT JOIN board_columns bc ON bc.id=l.column_id
+       WHERE l.carrier_id = ? AND l.status <> 'cancelled' ORDER BY l.pickup_date NULLS LAST, l.id DESC LIMIT 200`,
     [req.session.carrier.id]
   );
   res.render('portal/loads', { carrier: { ...req.session.carrier }, rows, csrfToken: req.csrfToken() });
 });
 
 router.get('/loads/:id', async (req, res) => {
-  const [rows] = await pool.query('SELECT * FROM loads WHERE id = ? AND carrier_id = ? LIMIT 1', [req.params.id, req.session.carrier.id]);
+  const [rows] = await pool.query(
+    `SELECT l.*, bc.name AS col_name, bc.color AS col_color FROM loads l
+       LEFT JOIN board_columns bc ON bc.id=l.column_id WHERE l.id = ? AND l.carrier_id = ? LIMIT 1`,
+    [req.params.id, req.session.carrier.id]);
   const load = rows[0];
   if (!load) return res.status(404).send('Not found');
   // Carriers only ever see the rate confirmation, not internal BOL/POD notes.

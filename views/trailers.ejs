@@ -1,0 +1,32 @@
+<% var title='Trailers — BSG Carriers'; var active='trailers'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Trailers</h1>
+  <div class="spacer" style="display:flex;gap:8px">
+    <a class="btn ghost" href="/admin/trailers">Board view</a>
+    <a class="btn gold" href="/admin/trailers/new">+ Add trailer</a>
+  </div>
+</div>
+<p class="sub">Every tracked trailer, its state and where it sits.</p>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Trailer #</th><th>Type</th><th>State</th><th>Location</th><th>Carrier</th><th>Load</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="6" class="muted" style="padding:28px;text-align:center">No trailers yet. <a href="/admin/trailers/new">Add one</a>.</td></tr><% } %>
+      <% rows.forEach(function(t){ %>
+        <tr class="row" onclick="location.href='/admin/trailers/<%= t.id %>'">
+          <td><strong><%= t.number %></strong><% if(t.alt_number){ %><div class="muted" style="font-size:11px">alt <%= t.alt_number %></div><% } %></td>
+          <td class="muted"><%= t.type || '—' %></td>
+          <td><span class="tag <%= t.state %>"><%= t.state %></span></td>
+          <td class="muted"><%= t.col_name || '—' %></td>
+          <td class="muted"><%= t.carrier_name || 'BSG' %></td>
+          <td class="muted"><%= t.load_ref || '—' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

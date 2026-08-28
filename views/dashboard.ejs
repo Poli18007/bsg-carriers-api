@@ -10,7 +10,7 @@
   <div class="kpi"><div class="n"><%= counts.onboarding_count || 0 %></div><div class="l">Onboarding</div></div>
 </div>
 
-<form method="get" action="/admin" class="filters">
+<form method="get" action="/admin/leads" class="filters">
   <input type="search" name="q" value="<%= filter.q %>" placeholder="Search name, company, email, phone, message…">
   <select name="type">
     <option value="">All types</option>
@@ -24,7 +24,7 @@
     <option value="archived" <%= filter.status==='archived'?'selected':'' %>>Archived</option>
   </select>
   <button class="btn" type="submit">Filter</button>
-  <a class="btn" href="/admin">Clear</a>
+  <a class="btn" href="/admin/leads">Clear</a>
   <a class="btn" style="margin-left:auto" href="/admin/leads.csv?type=<%= encodeURIComponent(filter.type) %>&status=<%= encodeURIComponent(filter.status) %>&q=<%= encodeURIComponent(filter.q) %>">Export CSV</a>
 </form>
 
@@ -52,7 +52,7 @@
 <% var pages = Math.max(1, Math.ceil(total / pageSize)); %>
 <div class="pager">
   <span>Page <%= page %> of <%= pages %></span>
-  <% function link(p){ var u = new URLSearchParams({q:filter.q,type:filter.type,status:filter.status,page:p}); return '/admin?'+u.toString(); } %>
+  <% function link(p){ var u = new URLSearchParams({q:filter.q,type:filter.type,status:filter.status,page:p}); return '/admin/leads?'+u.toString(); } %>
   <% if (page > 1) { %><a class="btn sm" href="<%= link(page-1) %>">← Prev</a><% } %>
   <% if (page < pages) { %><a class="btn sm" href="<%= link(page+1) %>">Next →</a><% } %>
 </div>

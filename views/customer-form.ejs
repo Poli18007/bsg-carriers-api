@@ -1,0 +1,40 @@
+<% var title=(isNew?'Add customer':customer.name)+' — BSG Carriers'; var active='customers'; var c=customer||{};
+   function money(n){ return n==null?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/customers">← Customers</a>
+  <h1 style="margin-left:4px"><%= isNew ? 'Add a customer' : c.name %></h1>
+</div>
+
+<form method="post" action="<%= isNew ? '/admin/customers' : '/admin/customers/' + c.id %>" class="panel" style="max-width:760px;padding:20px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="field"><label>Company name</label><input name="name" value="<%= c.name||'' %>" required></div>
+    <div class="field"><label>Contact name</label><input name="contact_name" value="<%= c.contact_name||'' %>"></div>
+    <div class="field"><label>Phone</label><input name="phone" value="<%= c.phone||'' %>"></div>
+    <div class="field"><label>Email</label><input name="email" value="<%= c.email||'' %>"></div>
+  </div>
+  <div class="field"><label>Address</label><input name="address" value="<%= c.address||'' %>"></div>
+  <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px">
+    <div class="field"><label>City</label><input name="city" value="<%= c.city||'' %>"></div>
+    <div class="field"><label>State</label><input name="state" value="<%= c.state||'' %>"></div>
+    <div class="field"><label>ZIP</label><input name="zip" value="<%= c.zip||'' %>"></div>
+  </div>
+  <div class="field"><label>Notes</label><input name="notes" value="<%= c.notes||'' %>"></div>
+  <button class="btn gold" type="submit"><%= isNew ? 'Add customer' : 'Save changes' %></button>
+</form>
+
+<% if (!isNew && loads && loads.length) { %>
+<h2 style="font-size:15px;margin-top:22px">Recent loads</h2>
+<div class="panel">
+  <table>
+    <thead><tr><th>Ref</th><th>Lane</th><th>Rate</th></tr></thead>
+    <tbody><% loads.forEach(function(l){ %>
+      <tr class="row" onclick="location.href='/admin/loads/<%= l.id %>'"><td><strong><%= l.ref||('#'+l.id) %></strong></td><td class="muted"><%= l.origin||'—' %> → <%= l.destination||'—' %></td><td><%= money(l.rate) %></td></tr>
+    <% }) %></tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,32 @@
+<% var title=(isNew?'Add trailer':'Trailer '+trailer.number)+' — BSG Carriers'; var active='trailers'; var t=trailer||{}; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/trailers">← Trailers board</a>
+  <h1 style="margin-left:4px"><%= isNew ? 'Add a trailer' : ('Trailer ' + t.number) %></h1>
+  <% if (!isNew) { %><span class="tag <%= t.state %>"><%= t.state %></span><% } %>
+</div>
+
+<form method="post" action="<%= isNew ? '/admin/trailers' : '/admin/trailers/' + t.id %>" class="panel" style="max-width:720px;padding:20px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="field"><label>Trailer #</label><input name="number" value="<%= t.number||'' %>" required></div>
+    <div class="field"><label>Alt #</label><input name="alt_number" value="<%= t.alt_number||'' %>"></div>
+    <div class="field"><label>Type</label><input name="type" value="<%= t.type||'' %>" placeholder="Dry van / Reefer"></div>
+    <div class="field"><label>State</label><select name="state"><% states.forEach(function(s){ %><option value="<%= s %>" <%= (t.state||'empty')===s?'selected':'' %>><%= s %></option><% }) %></select></div>
+    <div class="field"><label>Carrier</label><select name="carrier_id"><option value="">— BSG / none —</option><% carriers.forEach(function(c){ %><option value="<%= c.id %>" <%= String(t.carrier_id)===String(c.id)?'selected':'' %>><%= c.company_name %></option><% }) %></select></div>
+    <% if (!isNew && typeof columns !== 'undefined') { %>
+    <div class="field"><label>Column (location)</label><select name="column_id"><% columns.forEach(function(col){ %><option value="<%= col.id %>" <%= String(t.column_id)===String(col.id)?'selected':'' %>><%= col.name %></option><% }) %></select></div>
+    <% } else { %><input type="hidden" name="column_id" value="<%= t.column_id||'' %>"><% } %>
+  </div>
+  <div class="field"><label>Notes</label><input name="notes" value="<%= t.notes||'' %>"></div>
+  <button class="btn gold" type="submit"><%= isNew ? 'Add trailer' : 'Save changes' %></button>
+</form>
+
+<% if (!isNew) { %>
+<form method="post" action="/admin/trailers/<%= t.id %>/delete" style="max-width:720px;margin-top:12px" onsubmit="return confirm('Archive this trailer?')">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm danger" type="submit">Archive trailer</button>
+</form>
+<% } %>
+
+<%- include('partials/foot') %>

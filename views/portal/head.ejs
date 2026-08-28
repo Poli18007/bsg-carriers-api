@@ -7,7 +7,7 @@
 <title><%= typeof title !== 'undefined' ? title : 'BSG Carriers — Carrier Portal' %></title>
 <style>
   :root{--black:#0b0b0c;--panel:#15161a;--line:#26272e;--gold:#DCB555;--gold-600:#c39f43;
-    --text:#e9e9ec;--muted:#9a9ba3;--bg:#0e0f12;--danger:#e05555;--ok:#4caf7d;--info:#7fb0e0;--warn:#e0b060;}
+    --text:#e9e9ec;--muted:#9a9ba3;--bg:#0e0f12;--danger:#e05555;--ok:#DCB555;--info:#7fb0e0;--warn:#e0b060;}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
   a{color:var(--gold)}
@@ -40,22 +40,22 @@
   .status.pending{background:rgba(224,176,96,.16);color:var(--warn)}
   .status.under_review{background:rgba(127,176,224,.16);color:var(--info)}
   .status.needs_info{background:rgba(224,85,85,.16);color:var(--danger)}
-  .status.approved{background:rgba(76,175,125,.16);color:var(--ok)}
+  .status.approved{background:rgba(220,181,85,.16);color:var(--gold)}
   .status.rejected{background:#23242b;color:var(--muted)}
   .status.available{background:#23242b;color:var(--muted)}
   .status.booked{background:rgba(220,181,85,.16);color:var(--gold)}
   .status.dispatched{background:rgba(127,176,224,.16);color:var(--info)}
   .status.in_transit{background:rgba(127,176,224,.22);color:#a9cdf0}
-  .status.delivered{background:rgba(76,175,125,.14);color:#7fd0a0}
+  .status.delivered{background:rgba(220,181,85,.16);color:var(--gold)}
   .status.invoiced{background:rgba(160,140,224,.16);color:#b0a0e0}
-  .status.paid{background:rgba(76,175,125,.22);color:var(--ok)}
+  .status.paid{background:rgba(220,181,85,.22);color:var(--gold)}
   .status.cancelled{background:#1c1d22;color:#6b6c74}
   .doc{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
   .doc:last-child{border-bottom:0}
   .doc .name{font-weight:600}
   .doc .meta{color:var(--muted);font-size:12px}
   .doc .review{margin-left:auto}
-  .notice{background:rgba(76,175,125,.12);border:1px solid var(--ok);color:#bfe6d2;padding:10px 14px;border-radius:8px;margin-bottom:16px}
+  .notice{background:rgba(220,181,85,.12);border:1px solid var(--gold-600);color:#eadfbf;padding:10px 14px;border-radius:8px;margin-bottom:16px}
   .error{background:rgba(224,85,85,.12);border:1px solid var(--danger);color:#f0bcbc;padding:10px 14px;border-radius:8px;margin-bottom:16px}
   .login-wrap{max-width:420px;margin:7vh auto 0}
   .muted{color:var(--muted)}

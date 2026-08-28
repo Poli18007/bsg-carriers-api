@@ -49,8 +49,37 @@ router.post('/logout', requireLogin, (req, res) => {
 // Everything below requires a signed-in staff member.
 router.use(requireLogin);
 
-// --- Dashboard: list + search ----------------------------------------------
+// --- Ops dashboard (home) ---------------------------------------------------
 router.get('/', async (req, res) => {
+  const [[loadCounts]] = await pool.query(
+    `SELECT COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE bc.category IN ('active','in_transit'))::int AS active,
+            COUNT(*) FILTER (WHERE bc.category='in_transit')::int AS in_transit,
+            COUNT(*) FILTER (WHERE bc.category='delivered')::int AS delivered,
+            COALESCE(SUM(l.rate) FILTER (WHERE bc.category IN ('active','in_transit')),0) AS active_rate
+       FROM loads l LEFT JOIN board_columns bc ON bc.id=l.column_id`);
+  const [[carrierCounts]] = await pool.query(
+    `SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status='pending')::int AS pending FROM carriers`);
+  const [[fleet]] = await pool.query(
+    `SELECT (SELECT COUNT(*) FROM trucks WHERE active AND in_service)::int AS trucks,
+            (SELECT COUNT(*) FROM trailers WHERE active)::int AS trailers,
+            (SELECT COUNT(*) FROM customers)::int AS customers,
+            (SELECT COUNT(*) FROM submissions WHERE status='new')::int AS new_leads`);
+  const [board] = await pool.query("SELECT id FROM boards WHERE kind='loads' LIMIT 1");
+  const [columns] = await pool.query(
+    `SELECT bc.id, bc.name, bc.color, (SELECT COUNT(*) FROM loads l WHERE l.column_id=bc.id)::int AS n
+       FROM board_columns bc WHERE bc.board_id = ? ORDER BY bc.sort, bc.id`, [board[0] ? board[0].id : 0]);
+  const [recentLoads] = await pool.query(
+    `SELECT l.id, l.ref, l.customer, l.origin, l.destination, l.rate, bc.name AS col_name, bc.color AS col_color
+       FROM loads l LEFT JOIN board_columns bc ON bc.id=l.column_id ORDER BY l.updated_at DESC, l.id DESC LIMIT 6`);
+  const [activity] = await pool.query(
+    `SELECT e.body, e.kind, e.created_at, e.staff_email, l.id AS load_id, l.ref
+       FROM load_events e JOIN loads l ON l.id=e.load_id ORDER BY e.created_at DESC LIMIT 8`);
+  res.render('home', { user: req.session.user, loadCounts, carrierCounts, fleet, columns, recentLoads, activity });
+});
+
+// --- Leads: list + search ---------------------------------------------------
+router.get('/leads', async (req, res) => {
   const type = ['contact', 'onboarding'].includes(req.query.type) ? req.query.type : '';
   const status = ['new', 'read', 'archived'].includes(req.query.status) ? req.query.status : '';
   const q = (req.query.q || '').toString().trim().slice(0, 100);

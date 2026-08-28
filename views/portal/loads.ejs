@@ -19,7 +19,7 @@
           <td style="padding:11px 12px" class="muted"><%= d(l.pickup_date) %></td>
           <td style="padding:11px 12px" class="muted"><%= d(l.delivery_date) %></td>
           <td style="padding:11px 12px"><%= money(l.rate) %></td>
-          <td style="padding:11px 12px"><span class="status <%= l.status %>"><%= l.status.replace('_',' ') %></span></td>
+          <td style="padding:11px 12px"><% if(l.col_name){ %><span class="status" style="background:<%= (l.col_color||'#888') %>26;color:<%= l.col_color||'#9a9ba3' %>"><%= l.col_name %></span><% } else { %><span class="status <%= l.status %>"><%= l.status.replace('_',' ') %></span><% } %></td>
         </tr>
       <% }) %>
     </tbody>

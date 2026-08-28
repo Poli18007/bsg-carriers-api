@@ -264,5 +264,72 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS pu_number TEXT;
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS dispatcher_id INTEGER REFERENCES staff_users(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_loads_column ON loads (column_id);
 
+-- ===========================================================================
+-- Phase C/D — customers, trucks, trailers (fleet + shipper records)
+-- ===========================================================================
+
+-- Customers / shippers BSG dispatches freight for. Loads carried a free-text
+-- `customer`; this promotes it to a reusable record while keeping the text
+-- column as a fallback for one-off shippers.
+CREATE TABLE IF NOT EXISTS customers (
+  id           SERIAL PRIMARY KEY,
+  name         TEXT NOT NULL,
+  contact_name TEXT,
+  phone        TEXT,
+  email        TEXT,
+  address      TEXT,
+  city         TEXT,
+  state        TEXT,
+  zip          TEXT,
+  notes        TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_customers_name ON customers (name);
+
+-- Trucks are first-class on the Loads board's roster column. A truck ties to a
+-- carrier + driver and carries a column_id so it can sit on the board like its
+-- KanbanFlow "Trucks" column. Deleting a column/carrier/driver only nulls the
+-- link (SET NULL) — a truck record is never destroyed by that.
+CREATE TABLE IF NOT EXISTS trucks (
+  id          SERIAL PRIMARY KEY,
+  number      TEXT NOT NULL,
+  carrier_id  INTEGER REFERENCES carriers(id) ON DELETE SET NULL,
+  driver_id   INTEGER REFERENCES drivers(id) ON DELETE SET NULL,
+  plate       TEXT,
+  vin         TEXT,
+  make_model  TEXT,
+  in_service  BOOLEAN NOT NULL DEFAULT true,
+  notes       TEXT,
+  column_id   INTEGER REFERENCES board_columns(id) ON DELETE SET NULL,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_trucks_carrier ON trucks (carrier_id);
+CREATE INDEX IF NOT EXISTS idx_trucks_column ON trucks (column_id);
+
+-- Trailers are tracked units on the Trailers board. `state` colours the card
+-- (empty / loaded / damaged / maintenance); `column_id` is the yard/run it sits
+-- in. Like trucks, links SET NULL rather than cascade.
+CREATE TABLE IF NOT EXISTS trailers (
+  id          SERIAL PRIMARY KEY,
+  number      TEXT NOT NULL,
+  alt_number  TEXT,
+  type        TEXT,
+  state       TEXT NOT NULL DEFAULT 'empty'
+                CHECK (state IN ('empty','loaded','damaged','maintenance')),
+  carrier_id  INTEGER REFERENCES carriers(id) ON DELETE SET NULL,
+  notes       TEXT,
+  column_id   INTEGER REFERENCES board_columns(id) ON DELETE SET NULL,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_trailers_column ON trailers (column_id);
+
+-- Loads gain a customer record link plus the assigned truck and trailer. Added
+-- via ALTER because the loads table already exists in production.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES customers(id) ON DELETE SET NULL;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS truck_id INTEGER REFERENCES trucks(id) ON DELETE SET NULL;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS trailer_id INTEGER REFERENCES trailers(id) ON DELETE SET NULL;
+
 -- Sessions are held in signed cookies (cookie-session), so there is no session
 -- table on Postgres — nothing to define here.

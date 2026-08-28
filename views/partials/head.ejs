@@ -5,97 +5,210 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title><%= typeof title !== 'undefined' ? title : 'BSG Carriers — Admin' %></title>
+<%
+  // Small inline stroke-icons keep the sidebar crisp without an icon font.
+  var ICONS = {
+    dash:  '<path d="M3 3h7v7H3zM14 3h7v4h-7zM14 10h7v11h-7zM3 14h7v7H3z"/>',
+    board: '<rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/>',
+    trailer:'<rect x="2" y="7" width="14" height="9" rx="1"/><path d="M16 10h4l2 3v3h-6z"/><circle cx="8" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',
+    list:  '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    truck: '<path d="M2 6h11v9H2zM13 9h4l3 3v3h-7z"/><circle cx="6.5" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/>',
+    carrier:'<path d="M12 2 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7z"/>',
+    customer:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+    broker:'<path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/>',
+    inbox: '<path d="M4 4h16v16H4zM4 13h5l2 3h2l2-3h5"/>',
+    staff: '<circle cx="9" cy="8" r="3"/><path d="M2 20c0-3 3-5 7-5s7 2 7 5"/><path d="M17 11a3 3 0 1 0-1-5.8"/><path d="M22 20c0-2.5-2-4.2-5-4.7"/>',
+  };
+  function ic(n){ return '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[n]||'')+'</svg>'; }
+  var A = (typeof active !== 'undefined') ? active : '';
+  function initials(name){ return (name||'?').split(/\s+/).map(function(w){return w[0]||'';}).slice(0,2).join('').toUpperCase(); }
+%>
 <style>
   :root{
-    --black:#0b0b0c; --panel:#15161a; --line:#26272e; --gold:#DCB555; --gold-600:#c39f43;
-    --text:#e9e9ec; --muted:#9a9ba3; --bg:#0e0f12; --danger:#e05555; --ok:#4caf7d;
+    --bg:#0d0e11; --sidebar:#121319; --panel:#16181e; --panel-2:#1c1e26; --raise:#20222b;
+    --line:#262833; --line-soft:#1e202a;
+    --gold:#DCB555; --gold-600:#c39f43; --gold-soft:rgba(220,181,85,.14);
+    --text:#e8e9ee; --heading:#f4f5f8; --muted:#8a8c99; --faint:#63656f;
+    --danger:#e05e5e; --ok:#DCB555; --info:#7fb0e0; --warn:#e0b060; --purple:#b0a0e0;
+    --radius:12px; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.22);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
-  a{color:var(--gold)}
-  .stripe{height:4px;background:linear-gradient(90deg,var(--gold-600),var(--gold))}
-  header.top{display:flex;align-items:center;gap:24px;padding:14px 22px;background:var(--black);border-bottom:1px solid var(--line)}
-  header.top .brand{font-weight:800;letter-spacing:.5px}
-  header.top .brand b{color:var(--gold)}
-  header.top nav{display:flex;gap:18px;margin-left:8px}
-  header.top nav a{color:var(--muted);text-decoration:none;font-weight:600;text-transform:uppercase;font-size:12px;letter-spacing:.4px}
-  header.top nav a.active,header.top nav a:hover{color:var(--text)}
-  header.top .who{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13px}
-  header.top .who form{margin:0}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  a{color:var(--gold);text-decoration:none}
+  ::-webkit-scrollbar{height:10px;width:10px}
+  ::-webkit-scrollbar-thumb{background:#2c2e39;border-radius:8px;border:2px solid transparent;background-clip:content-box}
+  ::-webkit-scrollbar-thumb:hover{background:#3a3c48;background-clip:content-box}
+
+  /* ---- App shell ---------------------------------------------------------- */
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:236px;flex:0 0 236px;background:var(--sidebar);border-right:1px solid var(--line);
+           display:flex;flex-direction:column;position:sticky;top:0;height:100vh;z-index:40}
+  .sb-brand{display:flex;align-items:center;gap:10px;padding:16px 18px 14px;border-bottom:1px solid var(--line-soft)}
+  .sb-brand .logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold-600));
+                  display:flex;align-items:center;justify-content:center;color:#1a1400;font-weight:900;font-size:14px;letter-spacing:-.5px}
+  .sb-brand .wm{font-weight:800;letter-spacing:.3px;font-size:15px;color:var(--heading)}
+  .sb-brand .wm b{color:var(--gold)}
+  .sb-nav{flex:1;overflow-y:auto;padding:12px 12px 20px}
+  .sb-sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.8px;color:var(--faint);font-weight:700;margin:16px 10px 6px}
+  .sb-sec:first-child{margin-top:4px}
+  .sb-link{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;color:var(--muted);
+           font-weight:600;font-size:13.5px;margin-bottom:2px;transition:background .12s,color .12s}
+  .sb-link svg{flex:0 0 auto;opacity:.85}
+  .sb-link:hover{background:var(--panel-2);color:var(--text)}
+  .sb-link.active{background:var(--gold-soft);color:var(--gold)}
+  .sb-link.active svg{opacity:1}
+  .sb-link .cnt{margin-left:auto;background:#2a2c37;color:var(--muted);font-size:11px;font-weight:700;
+                padding:1px 7px;border-radius:999px}
+  .sb-link.active .cnt{background:rgba(220,181,85,.22);color:var(--gold)}
+  .sb-user{border-top:1px solid var(--line-soft);padding:12px;display:flex;align-items:center;gap:10px}
+  .sb-user .av{width:32px;height:32px;border-radius:50%;background:var(--raise);color:var(--gold);
+               display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:0 0 auto}
+  .sb-user .nm{min-width:0}
+  .sb-user .nm b{display:block;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sb-user .nm span{font-size:11px;color:var(--faint);text-transform:capitalize}
+  .sb-user form{margin:0 0 0 auto}
+  .icon-btn{background:none;border:1px solid var(--line);color:var(--muted);width:30px;height:30px;border-radius:8px;
+            cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
+  .icon-btn:hover{color:var(--text);border-color:var(--gold)}
+
+  .content{flex:1;min-width:0;display:flex;flex-direction:column}
+  .sb-toggle{display:none}
+  main{flex:1;max-width:1160px;width:100%;margin:0 auto;padding:26px 28px 64px}
+  main.wide{max-width:none;padding:0;display:flex;flex-direction:column;min-height:0}
+
+  h1{font-size:22px;line-height:1.2;margin:0 0 4px;color:var(--heading);font-weight:700;letter-spacing:-.2px}
+  h2{color:var(--heading)}
+  .sub{color:var(--muted);margin:0 0 22px}
+  .page-head{display:flex;align-items:center;gap:12px;margin-bottom:4px;flex-wrap:wrap}
+  .page-head h1{margin:0}
+  .spacer{margin-left:auto}
+
+  /* ---- Buttons ------------------------------------------------------------ */
   .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);
-       padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600;text-decoration:none}
-  .btn:hover{border-color:var(--gold)}
+       padding:8px 14px;border-radius:9px;cursor:pointer;font:inherit;font-weight:600;text-decoration:none;
+       transition:border-color .12s,background .12s}
+  .btn:hover{border-color:var(--gold);background:var(--panel-2)}
   .btn.gold{background:var(--gold);border-color:var(--gold);color:#1a1400}
-  .btn.gold:hover{background:var(--gold-600)}
-  .btn.sm{padding:5px 10px;font-size:12px}
-  main{max-width:1120px;margin:0 auto;padding:24px 22px 60px}
-  h1{font-size:22px;margin:0 0 4px}
-  .sub{color:var(--muted);margin:0 0 20px}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .btn.gold:hover{background:var(--gold-600);border-color:var(--gold-600)}
+  .btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+  .btn.ghost{background:transparent}
+  .btn.danger:hover{border-color:var(--danger);color:var(--danger)}
+
+  /* ---- Surfaces ----------------------------------------------------------- */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  main > .panel, main > form.panel{padding:0}
   table{width:100%;border-collapse:collapse}
-  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700}
+  th,td{text-align:left;padding:11px 15px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;background:var(--panel-2)}
   tr:last-child td{border-bottom:0}
-  tr.row:hover td{background:#191a1f;cursor:pointer}
-  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
-  .tag.new{background:rgba(220,181,85,.16);color:var(--gold)}
+  tr.row{transition:background .1s}
+  tr.row:hover td{background:var(--panel-2);cursor:pointer}
+
+  .tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+  .tag.new{background:var(--gold-soft);color:var(--gold)}
   .tag.read{background:#23242b;color:var(--muted)}
   .tag.archived{background:#1c1d22;color:#6b6c74}
   .tag.contact{background:#1c2733;color:#7fb0e0}
-  .tag.onboarding{background:#1e2a20;color:#7fd0a0}
+  .tag.onboarding{background:var(--gold-soft);color:var(--gold)}
   .tag.pending{background:rgba(224,176,96,.16);color:#e0b060}
   .tag.under_review{background:rgba(127,176,224,.16);color:#7fb0e0}
   .tag.needs_info{background:rgba(224,85,85,.16);color:#e05555}
-  .tag.approved{background:rgba(76,175,125,.16);color:#4caf7d}
+  .tag.approved{background:var(--gold-soft);color:var(--gold)}
   .tag.rejected{background:#23242b;color:#9a9ba3}
-  .tag.accepted{background:rgba(76,175,125,.16);color:#4caf7d}
+  .tag.accepted{background:var(--gold-soft);color:var(--gold)}
   .tag.available{background:#23242b;color:#9a9ba3}
-  .tag.booked{background:rgba(220,181,85,.16);color:#DCB555}
+  .tag.booked{background:var(--gold-soft);color:#DCB555}
   .tag.dispatched{background:rgba(127,176,224,.16);color:#7fb0e0}
   .tag.in_transit{background:rgba(127,176,224,.22);color:#a9cdf0}
-  .tag.delivered{background:rgba(76,175,125,.14);color:#7fd0a0}
+  .tag.delivered{background:var(--gold-soft);color:var(--gold)}
   .tag.invoiced{background:rgba(160,140,224,.16);color:#b0a0e0}
-  .tag.paid{background:rgba(76,175,125,.22);color:#4caf7d}
+  .tag.paid{background:rgba(220,181,85,.22);color:var(--gold)}
   .tag.cancelled{background:#1c1d22;color:#6b6c74}
+  .tag.empty{background:#23242b;color:#9a9ba3}
+  .tag.loaded{background:rgba(127,176,224,.2);color:#a9cdf0}
+  .tag.damaged{background:rgba(224,85,85,.16);color:#e05555}
+  .tag.maintenance{background:rgba(224,176,96,.16);color:#e0b060}
+
   .dl{display:grid;grid-template-columns:200px 1fr;gap:0}
-  .dl dt{color:var(--muted);padding:9px 14px;border-bottom:1px solid var(--line)}
-  .dl dd{margin:0;padding:9px 14px;border-bottom:1px solid var(--line)}
+  .dl dt{color:var(--muted);padding:10px 15px;border-bottom:1px solid var(--line-soft)}
+  .dl dd{margin:0;padding:10px 15px;border-bottom:1px solid var(--line-soft)}
+
   .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
-  .filters input,.filters select{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:8px;font:inherit}
+  .filters input,.filters select{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:9px;font:inherit}
+  .filters input:focus,.filters select:focus,.field input:focus,.field select:focus{outline:none;border-color:var(--gold)}
   .filters input[type=search]{min-width:240px}
-  .kpis{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap}
-  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;min-width:120px}
-  .kpi .n{font-size:22px;font-weight:800}
-  .kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:15px 17px;box-shadow:var(--shadow)}
+  .kpi .n{font-size:24px;font-weight:800;color:var(--heading);letter-spacing:-.5px}
+  .kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+  .kpi.accent{border-color:rgba(220,181,85,.35)}
+  .kpi.accent .n{color:var(--gold)}
+
   .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;color:var(--muted)}
   .field{margin-bottom:14px}
   .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:5px}
-  .field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:8px;font:inherit}
-  .dl{display:grid;grid-template-columns:200px 1fr;gap:0}
-  .dl dt{color:var(--muted);padding:9px 14px;border-bottom:1px solid var(--line)}
-  .dl dd{margin:0;padding:9px 14px;border-bottom:1px solid var(--line)}
-  .notice{background:rgba(76,175,125,.12);border:1px solid var(--ok);color:#bfe6d2;padding:10px 14px;border-radius:8px;margin-bottom:16px}
-  .error{background:rgba(224,85,85,.12);border:1px solid var(--danger);color:#f0bcbc;padding:10px 14px;border-radius:8px;margin-bottom:16px}
-  .login-wrap{max-width:380px;margin:8vh auto 0}
+  .field input,.field select,.field textarea{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:9px;font:inherit}
+  .notice{background:var(--gold-soft);border:1px solid var(--gold-600);color:#eadfbf;padding:11px 15px;border-radius:10px;margin-bottom:16px}
+  .error{background:rgba(224,85,85,.12);border:1px solid var(--danger);color:#f0bcbc;padding:11px 15px;border-radius:10px;margin-bottom:16px}
+  .login-wrap{max-width:400px;margin:9vh auto 0;padding:0 20px}
   .muted{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+  @media(max-width:860px){
+    .sidebar{position:fixed;left:0;top:0;transform:translateX(-100%);transition:transform .2s ease;box-shadow:var(--shadow)}
+    body.sb-open .sidebar{transform:translateX(0)}
+    body.sb-open .sb-scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:35}
+    .sb-toggle{display:inline-flex;align-items:center;gap:8px;position:sticky;top:0;z-index:20;
+               background:var(--sidebar);border-bottom:1px solid var(--line);padding:11px 16px;
+               color:var(--text);font-weight:700;cursor:pointer;border-left:0;border-right:0;border-top:0;width:100%}
+    main{padding:18px 16px 60px}
+    .dl{grid-template-columns:1fr}
+    .dl dt{padding-bottom:0;border-bottom:0}
+  }
 </style>
 </head>
 <body>
-<div class="stripe"></div>
 <% if (typeof user !== 'undefined' && user) { %>
-<header class="top">
-  <span class="brand">BSG<b>·</b>CARRIERS</span>
-  <nav>
-    <a href="/admin/loads" class="<%= (typeof active!=='undefined'&&active==='loads')?'active':'' %>">Dispatch</a>
-    <a href="/admin/carriers" class="<%= (typeof active!=='undefined'&&active==='carriers')?'active':'' %>">Carriers</a>
-    <a href="/admin/brokers" class="<%= (typeof active!=='undefined'&&active==='brokers')?'active':'' %>">Brokers</a>
-    <a href="/admin" class="<%= (typeof active!=='undefined'&&active==='leads')?'active':'' %>">Leads</a>
-    <% if (user.role === 'admin') { %><a href="/admin/users" class="<%= (typeof active!=='undefined'&&active==='users')?'active':'' %>">Staff</a><% } %>
-  </nav>
-  <div class="who">
-    <span><%= user.name %> · <%= user.role %></span>
-    <form method="post" action="/admin/logout"><input type="hidden" name="_csrf" value="<%= typeof csrfToken!=='undefined'?csrfToken:'' %>"><button class="btn sm" type="submit">Sign out</button></form>
-  </div>
-</header>
+<div class="app">
+  <div class="sb-scrim" onclick="document.body.classList.remove('sb-open')"></div>
+  <aside class="sidebar">
+    <div class="sb-brand">
+      <span class="logo">B</span>
+      <span class="wm">BSG<b>·</b>CARRIERS</span>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Dispatch</div>
+      <a class="sb-link <%= A==='home'?'active':'' %>" href="/admin"><%- ic('dash') %> Dashboard</a>
+      <a class="sb-link <%= A==='board'?'active':'' %>" href="/admin/board"><%- ic('board') %> Loads board</a>
+      <a class="sb-link <%= A==='trailers'?'active':'' %>" href="/admin/trailers"><%- ic('trailer') %> Trailers board</a>
+      <a class="sb-link <%= A==='loads'?'active':'' %>" href="/admin/loads"><%- ic('list') %> All loads</a>
+
+      <div class="sb-sec">Fleet &amp; partners</div>
+      <a class="sb-link <%= A==='trucks'?'active':'' %>" href="/admin/trucks"><%- ic('truck') %> Trucks</a>
+      <a class="sb-link <%= A==='carriers'?'active':'' %>" href="/admin/carriers"><%- ic('carrier') %> Carriers</a>
+      <a class="sb-link <%= A==='customers'?'active':'' %>" href="/admin/customers"><%- ic('customer') %> Customers</a>
+      <a class="sb-link <%= A==='brokers'?'active':'' %>" href="/admin/brokers"><%- ic('broker') %> Brokers</a>
+
+      <div class="sb-sec">Inbox</div>
+      <a class="sb-link <%= A==='leads'?'active':'' %>" href="/admin/leads"><%- ic('inbox') %> Leads</a>
+      <% if (user.role === 'admin') { %>
+      <div class="sb-sec">Admin</div>
+      <a class="sb-link <%= A==='users'?'active':'' %>" href="/admin/users"><%- ic('staff') %> Staff</a>
+      <% } %>
+    </nav>
+    <div class="sb-user">
+      <span class="av"><%= initials(user.name) %></span>
+      <span class="nm"><b><%= user.name %></b><span><%= user.role %></span></span>
+      <form method="post" action="/admin/logout"><input type="hidden" name="_csrf" value="<%= typeof csrfToken!=='undefined'?csrfToken:'' %>"><button class="icon-btn" type="submit" title="Sign out">⏻</button></form>
+    </div>
+  </aside>
+  <div class="content">
+    <button class="sb-toggle" onclick="document.body.classList.toggle('sb-open')">☰ Menu</button>
+    <main class="<%= (typeof wide!=='undefined'&&wide)?'wide':'' %>">
+<% } else { %>
+    <main>
 <% } %>
-<main>

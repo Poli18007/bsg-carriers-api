@@ -41,6 +41,31 @@
   <% }) %>
 </div>
 
+<h2 style="font-size:16px">Drivers</h2>
+<div class="panel" style="margin-bottom:18px">
+  <% if (!drivers.length) { %><p class="muted" style="margin:0 0 12px">No drivers yet.</p><% } %>
+  <% drivers.forEach(function(d){ %>
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);<%= d.active?'':'opacity:.5' %>">
+      <div><strong><%= d.name %></strong><% if(!d.active){ %> <span class="muted">(inactive)</span><% } %>
+        <div class="muted" style="font-size:12px">
+          <% if(d.phone){ %><a href="tel:<%= d.phone.replace(/[^0-9+]/g,'') %>"><%= d.phone %></a><% } %>
+          <% if(d.email){ %> · <%= d.email %><% } %>
+          <% if(d.cdl_number){ %> · CDL <%= d.cdl_number %><%= d.cdl_state?' ('+d.cdl_state+')':'' %><% } %>
+        </div></div>
+      <form method="post" action="/admin/drivers/<%= d.id %>/remove" style="margin:0 0 0 auto"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit"><%= d.active?'Deactivate':'Reactivate' %></button></form>
+    </div>
+  <% }) %>
+  <form method="post" action="/admin/carriers/<%= c.id %>/drivers" style="display:grid;grid-template-columns:1.4fr 1fr 1.4fr .8fr .5fr auto;gap:8px;align-items:end;margin-top:12px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field" style="margin:0"><label>Driver name</label><input name="name" required></div>
+    <div class="field" style="margin:0"><label>Phone</label><input name="phone"></div>
+    <div class="field" style="margin:0"><label>Email</label><input name="email"></div>
+    <div class="field" style="margin:0"><label>CDL #</label><input name="cdl_number"></div>
+    <div class="field" style="margin:0"><label>State</label><input name="cdl_state"></div>
+    <button class="btn sm gold" type="submit">Add</button>
+  </form>
+</div>
+
 <h2 style="font-size:16px">Onboarding status</h2>
 <form method="post" action="/admin/carriers/<%= c.id %>/status" class="panel" style="max-width:620px">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">

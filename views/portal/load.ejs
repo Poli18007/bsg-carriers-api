@@ -1,0 +1,53 @@
+<% var title='Load '+(load.ref||('#'+load.id))+' — BSG Carriers'; var active='loads'; var l=load;
+   function money(n){ return n==null?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+   function d(x){ return x?new Date(x).toLocaleDateString():'—'; } %>
+<%- include('head', { title: title, active: active }) %>
+
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+  <a class="btn sm" href="/portal/loads">← Your loads</a>
+  <span class="status <%= l.status %>"><%= l.status.replace('_',' ') %></span>
+</div>
+<h1><%= l.ref || ('Load #' + l.id) %></h1>
+<p class="sub"><%= l.origin || '—' %> → <%= l.destination || '—' %> · <%= money(l.rate) %></p>
+
+<div class="grid" style="align-items:start">
+  <div class="panel">
+    <h2 style="margin-top:0;font-size:15px;color:var(--gold)">Pickup</h2>
+    <div style="font-weight:600"><%= l.pickup_name || (l.origin || '—') %></div>
+    <div class="muted"><%= [l.pickup_address, l.pickup_city, l.pickup_state, l.pickup_zip].filter(Boolean).join(', ') || '' %></div>
+    <div style="margin-top:8px"><span class="muted">Appointment:</span> <%= l.pickup_appt || d(l.pickup_date) %></div>
+    <% if(l.pickup_ref){ %><div><span class="muted">Pickup #:</span> <%= l.pickup_ref %></div><% } %>
+    <% if(l.pickup_instructions){ %><div style="margin-top:6px"><%= l.pickup_instructions %></div><% } %>
+  </div>
+  <div class="panel">
+    <h2 style="margin-top:0;font-size:15px;color:var(--gold)">Delivery</h2>
+    <div style="font-weight:600"><%= l.delivery_name || (l.destination || '—') %></div>
+    <div class="muted"><%= [l.delivery_address, l.delivery_city, l.delivery_state, l.delivery_zip].filter(Boolean).join(', ') || '' %></div>
+    <div style="margin-top:8px"><span class="muted">Appointment:</span> <%= l.delivery_appt || d(l.delivery_date) %></div>
+    <% if(l.delivery_ref){ %><div><span class="muted">Delivery #:</span> <%= l.delivery_ref %></div><% } %>
+    <% if(l.delivery_instructions){ %><div style="margin-top:6px"><%= l.delivery_instructions %></div><% } %>
+  </div>
+</div>
+
+<div class="panel" style="margin-top:16px">
+  <div class="grid">
+    <div><span class="muted">Commodity:</span> <%= l.commodity || '—' %></div>
+    <div><span class="muted">Weight:</span> <%= l.weight || '—' %></div>
+    <div><span class="muted">Equipment:</span> <%= l.equipment || '—' %></div>
+    <div><span class="muted">Miles:</span> <%= l.miles || '—' %></div>
+    <div><span class="muted">Rate:</span> <strong><%= money(l.rate) %></strong></div>
+  </div>
+  <% if(l.notes){ %><div style="margin-top:10px"><span class="muted">Notes:</span> <%= l.notes %></div><% } %>
+</div>
+
+<% if(docs.length){ %>
+<div class="panel" style="margin-top:16px">
+  <h2 style="margin-top:0;font-size:15px">Rate confirmation</h2>
+  <% docs.forEach(function(dc){ %>
+    <div class="doc"><a href="/portal/loads/<%= l.id %>/documents/<%= dc.id %>" target="_blank"><%= dc.filename %></a>
+      <span class="meta muted" style="margin-left:8px"><%= new Date(dc.uploaded_at).toLocaleDateString() %></span></div>
+  <% }) %>
+</div>
+<% } %>
+
+<%- include('foot') %>

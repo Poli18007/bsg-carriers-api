@@ -138,5 +138,82 @@ CREATE INDEX IF NOT EXISTS idx_loads_status ON loads (status);
 CREATE INDEX IF NOT EXISTS idx_loads_carrier ON loads (carrier_id);
 CREATE INDEX IF NOT EXISTS idx_loads_pickup ON loads (pickup_date);
 
+-- ===========================================================================
+-- Phase 3.1 — drivers, richer routes, load docs, accessorials, timeline
+-- ===========================================================================
+
+-- Drivers belong to a carrier (a small fleet has several). A load is assigned
+-- one. ON DELETE CASCADE with the carrier; loads keep history via SET NULL.
+CREATE TABLE IF NOT EXISTS drivers (
+  id          SERIAL PRIMARY KEY,
+  carrier_id  INTEGER NOT NULL REFERENCES carriers(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  phone       TEXT,
+  email       TEXT,
+  cdl_number  TEXT,
+  cdl_state   TEXT,
+  active      BOOLEAN NOT NULL DEFAULT true,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_drivers_carrier ON drivers (carrier_id);
+
+-- Documents attached to a load (rate confirmation, BOL, POD). Stored as bytea
+-- (ephemeral serverless FS). Carriers may download the rate con of their loads.
+CREATE TABLE IF NOT EXISTS load_documents (
+  id           BIGSERIAL PRIMARY KEY,
+  load_id      BIGINT NOT NULL REFERENCES loads(id) ON DELETE CASCADE,
+  doc_type     TEXT NOT NULL DEFAULT 'other' CHECK (doc_type IN ('rate_con','bol','pod','other')),
+  filename     TEXT NOT NULL,
+  mime_type    TEXT NOT NULL,
+  size_bytes   INTEGER NOT NULL,
+  content      BYTEA NOT NULL,
+  uploaded_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_loaddoc_load ON load_documents (load_id, doc_type);
+
+-- Accessorial line items on a load. Carrier-owed = load.rate + SUM(amount).
+CREATE TABLE IF NOT EXISTS load_accessorials (
+  id          BIGSERIAL PRIMARY KEY,
+  load_id     BIGINT NOT NULL REFERENCES loads(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL DEFAULT 'other' CHECK (kind IN ('detention','layover','tonu','lumper','fuel','other')),
+  amount      NUMERIC(10,2) NOT NULL DEFAULT 0,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_acc_load ON load_accessorials (load_id);
+
+-- Check-call / status timeline per load. status-changes are logged automatically;
+-- staff add check calls and notes.
+CREATE TABLE IF NOT EXISTS load_events (
+  id           BIGSERIAL PRIMARY KEY,
+  load_id      BIGINT NOT NULL REFERENCES loads(id) ON DELETE CASCADE,
+  staff_email  TEXT,
+  kind         TEXT NOT NULL DEFAULT 'note' CHECK (kind IN ('status','check_call','note')),
+  body         TEXT NOT NULL,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_event_load ON load_events (load_id, created_at DESC);
+
+-- Columns added to the existing loads table (CREATE TABLE IF NOT EXISTS above is
+-- a no-op once the table exists, so new fields must be ALTERed in idempotently).
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS driver_id INTEGER REFERENCES drivers(id) ON DELETE SET NULL;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS miles INTEGER;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_name TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_address TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_city TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_state TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_zip TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_appt TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_ref TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pickup_instructions TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_name TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_address TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_city TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_state TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_zip TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_appt TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_ref TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_instructions TEXT;
+
 -- Sessions are held in signed cookies (cookie-session), so there is no session
 -- table on Postgres — nothing to define here.

@@ -188,4 +188,36 @@ router.post('/documents/:id/delete', async (req, res) => {
   res.redirect('/portal?notice=' + encodeURIComponent('Document removed.'));
 });
 
+// --- Loads assigned to this carrier ----------------------------------------
+router.get('/loads', async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT id, ref, origin, destination, pickup_date, delivery_date, rate, status
+       FROM loads WHERE carrier_id = ? AND status <> 'cancelled' ORDER BY pickup_date NULLS LAST, id DESC LIMIT 200`,
+    [req.session.carrier.id]
+  );
+  res.render('portal/loads', { carrier: { ...req.session.carrier }, rows, csrfToken: req.csrfToken() });
+});
+
+router.get('/loads/:id', async (req, res) => {
+  const [rows] = await pool.query('SELECT * FROM loads WHERE id = ? AND carrier_id = ? LIMIT 1', [req.params.id, req.session.carrier.id]);
+  const load = rows[0];
+  if (!load) return res.status(404).send('Not found');
+  // Carriers only ever see the rate confirmation, not internal BOL/POD notes.
+  const [docs] = await pool.query("SELECT id, filename, uploaded_at FROM load_documents WHERE load_id = ? AND doc_type = 'rate_con' ORDER BY uploaded_at DESC", [load.id]);
+  res.render('portal/load', { carrier: { ...req.session.carrier }, load, docs, csrfToken: req.csrfToken() });
+});
+
+router.get('/loads/:id/documents/:docId', async (req, res) => {
+  // Only a rate_con on a load that belongs to this carrier.
+  const [rows] = await pool.query(
+    `SELECT d.filename, d.mime_type, d.content FROM load_documents d JOIN loads l ON l.id = d.load_id
+       WHERE d.id = ? AND l.id = ? AND l.carrier_id = ? AND d.doc_type = 'rate_con' LIMIT 1`,
+    [req.params.docId, req.params.id, req.session.carrier.id]
+  );
+  if (!rows[0]) return res.status(404).send('Not found');
+  res.setHeader('Content-Type', rows[0].mime_type);
+  res.setHeader('Content-Disposition', `inline; filename="${rows[0].filename.replace(/"/g, '')}"`);
+  res.send(rows[0].content);
+});
+
 module.exports = router;

@@ -190,7 +190,8 @@ router.get('/carriers/:id', async (req, res) => {
     'SELECT id, doc_type, filename, mime_type, size_bytes, review, uploaded_at FROM carrier_documents WHERE carrier_id = ? ORDER BY uploaded_at DESC',
     [carrier.id]
   );
-  res.render('carrier', { user: req.session.user, carrier, docs, statuses: CARRIER_STATUSES, csrfToken: req.csrfToken() });
+  const [drivers] = await pool.query('SELECT * FROM drivers WHERE carrier_id = ? ORDER BY active DESC, name', [carrier.id]);
+  res.render('carrier', { user: req.session.user, carrier, docs, drivers, statuses: CARRIER_STATUSES, csrfToken: req.csrfToken() });
 });
 
 // Staff download of any carrier document.

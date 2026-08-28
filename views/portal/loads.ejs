@@ -1,0 +1,29 @@
+<% var title='Your loads — BSG Carriers'; var active='loads';
+   function money(n){ return n==null?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—'; } %>
+<%- include('head', { title: title, active: active }) %>
+
+<h1>Your loads</h1>
+<p class="sub">Loads BSG Carriers has assigned to you.</p>
+
+<div class="panel">
+  <table style="width:100%;border-collapse:collapse">
+    <thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">
+      <th style="padding:10px 12px">Ref</th><th style="padding:10px 12px">Lane</th><th style="padding:10px 12px">Pickup</th><th style="padding:10px 12px">Delivery</th><th style="padding:10px 12px">Rate</th><th style="padding:10px 12px">Status</th></tr></thead>
+    <tbody>
+      <% if(!rows.length){ %><tr><td colspan="6" class="muted" style="padding:28px;text-align:center">No loads assigned yet.</td></tr><% } %>
+      <% rows.forEach(function(l){ %>
+        <tr style="border-top:1px solid var(--line);cursor:pointer" onclick="location.href='/portal/loads/<%= l.id %>'">
+          <td style="padding:11px 12px"><strong><%= l.ref || ('#'+l.id) %></strong></td>
+          <td style="padding:11px 12px"><%= l.origin || '—' %> → <%= l.destination || '—' %></td>
+          <td style="padding:11px 12px" class="muted"><%= d(l.pickup_date) %></td>
+          <td style="padding:11px 12px" class="muted"><%= d(l.delivery_date) %></td>
+          <td style="padding:11px 12px"><%= money(l.rate) %></td>
+          <td style="padding:11px 12px"><span class="status <%= l.status %>"><%= l.status.replace('_',' ') %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('foot') %>

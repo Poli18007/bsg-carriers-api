@@ -1,0 +1,72 @@
+<% var title='Kanban — BSG Carriers Admin'; var active='loads';
+   function money(n){ return n==null?'':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div style="display:flex;align-items:center;gap:12px">
+  <h1 style="margin:0">Dispatch board</h1>
+  <a class="btn sm" href="/admin/loads">Table view</a>
+  <a class="btn gold sm" href="/admin/loads/new" style="margin-left:auto">+ New load</a>
+</div>
+<p class="sub">Drag a load between columns to change its status.</p>
+
+<div class="kb">
+  <% columns.forEach(function(col){ %>
+    <div class="kb-col" data-status="<%= col %>">
+      <div class="kb-head"><span class="tag <%= col %>"><%= col.replace('_',' ') %></span><span class="kb-count"><%= byStatus[col].length %></span></div>
+      <div class="kb-list" data-status="<%= col %>">
+        <% byStatus[col].forEach(function(l){ %>
+          <a class="kb-card" draggable="true" data-id="<%= l.id %>" href="/admin/loads/<%= l.id %>">
+            <div class="kb-ref"><%= l.ref || ('#'+l.id) %> <% if(l.rate){ %><span class="kb-rate"><%= money(l.rate) %></span><% } %></div>
+            <div class="kb-lane"><%= l.origin || '—' %> → <%= l.destination || '—' %></div>
+            <div class="kb-sub"><%= l.carrier_name || 'unassigned' %></div>
+          </a>
+        <% }) %>
+      </div>
+    </div>
+  <% }) %>
+</div>
+
+<style>
+  .kb{display:flex;gap:12px;overflow-x:auto;padding-bottom:12px;align-items:flex-start}
+  .kb-col{min-width:230px;flex:1 0 230px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .kb-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .kb-count{color:var(--muted);font-size:12px}
+  .kb-list{min-height:60px;display:flex;flex-direction:column;gap:8px}
+  .kb-list.drag-over{outline:1px dashed var(--gold);outline-offset:2px;border-radius:8px}
+  .kb-card{display:block;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;text-decoration:none;color:var(--text);cursor:grab}
+  .kb-card:hover{border-color:var(--gold)}
+  .kb-card.dragging{opacity:.5}
+  .kb-ref{font-weight:700;display:flex;justify-content:space-between;gap:8px}
+  .kb-rate{color:var(--gold);font-weight:700}
+  .kb-lane{font-size:13px;margin-top:3px}
+  .kb-sub{color:var(--muted);font-size:12px;margin-top:2px}
+</style>
+<script>
+  var CSRF = <%- JSON.stringify(csrfToken) %>;
+  var dragId = null;
+  document.querySelectorAll('.kb-card').forEach(function(card){
+    card.addEventListener('dragstart', function(e){ dragId = card.dataset.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
+    card.addEventListener('dragend', function(){ card.classList.remove('dragging'); });
+    // let a click still open the load, but not right after a drag
+    card.addEventListener('click', function(e){ if(card.classList.contains('dragging')) e.preventDefault(); });
+  });
+  document.querySelectorAll('.kb-list').forEach(function(list){
+    list.addEventListener('dragover', function(e){ e.preventDefault(); list.classList.add('drag-over'); });
+    list.addEventListener('dragleave', function(){ list.classList.remove('drag-over'); });
+    list.addEventListener('drop', function(e){
+      e.preventDefault(); list.classList.remove('drag-over');
+      if(!dragId) return;
+      var card = document.querySelector('.kb-card[data-id="'+dragId+'"]');
+      var status = list.dataset.status;
+      if(card){ list.appendChild(card); recount(); }
+      fetch('/admin/loads/'+dragId+'/status', {
+        method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':CSRF,'X-Requested-With':'fetch'},
+        body:'status='+encodeURIComponent(status)
+      }).catch(function(){ location.reload(); });
+      dragId = null;
+    });
+  });
+  function recount(){ document.querySelectorAll('.kb-col').forEach(function(col){ col.querySelector('.kb-count').textContent = col.querySelectorAll('.kb-card').length; }); }
+</script>
+
+<%- include('partials/foot') %>

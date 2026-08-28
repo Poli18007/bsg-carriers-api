@@ -1,8 +1,8 @@
 <% var title = 'Staff — BSG Carriers Admin'; var active = 'users'; %>
 <%- include('partials/head', { title: title, active: active }) %>
 
-<h1>Staff accounts</h1>
-<p class="sub">Individual logins for the admin dashboard. Admins can add and disable accounts.</p>
+<div class="page-head"><h1>Staff accounts</h1></div>
+<p class="sub">Individual logins for the dispatch admin. Set each person's <strong>role</strong> to control what they can access.</p>
 
 <% if (notice) { %><div class="notice"><%= notice %></div><% } %>
 <% if (error) { %><div class="error"><%= error %></div><% } %>
@@ -13,18 +13,31 @@
     <tbody>
       <% users.forEach(function(u){ %>
         <tr>
-          <td><%= u.name %></td>
+          <td><strong><%= u.name %></strong></td>
           <td class="muted"><%= u.email %></td>
-          <td><span class="tag <%= u.role==='admin'?'onboarding':'read' %>"><%= u.role %></span></td>
-          <td><%= u.active ? 'Active' : 'Disabled' %></td>
-          <td class="muted"><%= u.last_login ? new Date(u.last_login).toLocaleString() : 'never' %></td>
+          <td>
+            <% if (u.id === user.id) { %>
+              <span class="tag onboarding"><%= u.role %></span> <span class="muted" style="font-size:11px">you</span>
+            <% } else { %>
+              <form method="post" action="/admin/users/<%= u.id %>/role" style="margin:0;display:flex;gap:6px;align-items:center">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <select name="role" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:5px 8px;border-radius:7px;font-size:12px">
+                  <% roles.forEach(function(r){ %><option value="<%= r.key %>" <%= u.role===r.key?'selected':'' %>><%= r.label %></option><% }) %>
+                  <% if (u.role==='staff') { %><option value="staff" selected>Staff (legacy)</option><% } %>
+                </select>
+                <button class="btn sm" type="submit">Set</button>
+              </form>
+            <% } %>
+          </td>
+          <td><span class="tag <%= u.active?'approved':'cancelled' %>"><%= u.active ? 'Active' : 'Disabled' %></span></td>
+          <td class="muted" style="white-space:nowrap"><%= u.last_login ? new Date(u.last_login).toLocaleString() : 'never' %></td>
           <td style="text-align:right">
             <% if (u.id !== user.id) { %>
               <form method="post" action="/admin/users/<%= u.id %>/toggle" style="margin:0">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button class="btn sm" type="submit"><%= u.active ? 'Disable' : 'Enable' %></button>
               </form>
-            <% } else { %><span class="muted">you</span><% } %>
+            <% } %>
           </td>
         </tr>
       <% }) %>
@@ -33,16 +46,21 @@
 </div>
 
 <h2 style="font-size:16px">Add a staff member</h2>
-<form method="post" action="/admin/users" class="panel" style="padding:18px;max-width:520px">
+<form method="post" action="/admin/users" class="panel" style="padding:18px 20px;max-width:560px">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <div class="field"><label>Name</label><input name="name" required></div>
   <div class="field"><label>Email</label><input name="email" type="email" required></div>
   <div class="field"><label>Temporary password (10+ characters)</label><input name="password" type="text" minlength="10" required></div>
   <div class="field">
     <label>Role</label>
-    <select name="role"><option value="staff">Staff — view leads</option><option value="admin">Admin — also manage staff</option></select>
+    <select name="role" id="roleSel" onchange="document.getElementById('roleBlurb').textContent=this.selectedOptions[0].dataset.blurb">
+      <% roles.forEach(function(r,i){ %><option value="<%= r.key %>" data-blurb="<%= r.blurb %>" <%= r.key==='dispatcher'?'selected':'' %>><%= r.label %></option><% }) %>
+    </select>
+    <p class="muted" id="roleBlurb" style="font-size:12px;margin:6px 0 0"><%= (roles.find(function(r){return r.key==='dispatcher'})||{}).blurb || '' %></p>
   </div>
   <button class="btn gold" type="submit">Add account</button>
 </form>
+
+<p class="muted" style="font-size:12.5px;margin-top:16px">See exactly what each role can open on the <a href="/admin/settings">Settings</a> page.</p>
 
 <%- include('partials/foot') %>

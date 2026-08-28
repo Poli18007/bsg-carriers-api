@@ -25,6 +25,7 @@
     clipboard:'<rect x="7" y="4" width="10" height="17" rx="2"/><path d="M9 4V2.8h6V4"/><path d="M9.5 10h5M9.5 14h5"/>',
     receipt:'<path d="M6 2h12v20l-2.5-1.5L13 22l-2.5-1.5L8 22l-2-1.5V2z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
     chart:  '<path d="M4 4v16h16"/><path d="M8 16v-5M13 16V8M18 16v-9"/>',
+    gear:   '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>',
     staff: '<circle cx="9" cy="8" r="3"/><path d="M2 20c0-3 3-5 7-5s7 2 7 5"/><path d="M17 11a3 3 0 1 0-1-5.8"/><path d="M22 20c0-2.5-2-4.2-5-4.7"/>',
   };
   function ic(n){ return '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[n]||'')+'</svg>'; }
@@ -191,35 +192,49 @@
     <div class="sb-brand">
       <img src="/brand/logo.png" alt="BSG Carriers" style="height:30px;width:auto">
     </div>
+    <% var S = (typeof sections !== 'undefined' && sections) ? sections : ['dispatch','fleet','partners','billing','reports','inbox','staff'];
+       function has(x){ return S.indexOf(x) >= 0; } %>
     <nav class="sb-nav">
+      <% if (has('dispatch')) { %>
       <div class="sb-sec">Dispatch</div>
       <a class="sb-link <%= A==='home'?'active':'' %>" href="/admin"><%- ic('dash') %> Dashboard</a>
       <a class="sb-link <%= A==='board'?'active':'' %>" href="/admin/board"><%- ic('board') %> Loads board</a>
       <a class="sb-link <%= A==='trailers'?'active':'' %>" href="/admin/trailers"><%- ic('trailer') %> Trailers board</a>
       <a class="sb-link <%= A==='loads'?'active':'' %>" href="/admin/loads"><%- ic('list') %> All loads</a>
       <a class="sb-link <%= A==='trips'?'active':'' %>" href="/admin/trips"><%- ic('trip') %> Trips</a>
+      <% } %>
 
+      <% if (has('fleet')) { %>
       <div class="sb-sec">Fleet &amp; compliance</div>
       <a class="sb-link <%= A==='trucks'?'active':'' %>" href="/admin/trucks"><%- ic('truck') %> Trucks</a>
       <a class="sb-link <%= A==='maintenance'?'active':'' %>" href="/admin/maintenance"><%- ic('wrench') %> Maintenance</a>
       <a class="sb-link <%= A==='dvir'?'active':'' %>" href="/admin/dvir"><%- ic('clipboard') %> DVIR reports</a>
+      <% } %>
 
+      <% if (has('partners')) { %>
       <div class="sb-sec">Partners</div>
       <a class="sb-link <%= A==='carriers'?'active':'' %>" href="/admin/carriers"><%- ic('carrier') %> Carriers</a>
       <a class="sb-link <%= A==='customers'?'active':'' %>" href="/admin/customers"><%- ic('customer') %> Customers</a>
       <a class="sb-link <%= A==='brokers'?'active':'' %>" href="/admin/brokers"><%- ic('broker') %> Brokers</a>
+      <% } %>
 
+      <% if (has('billing') || has('reports')) { %>
       <div class="sb-sec">Billing</div>
+      <% if (has('billing')) { %>
       <a class="sb-link <%= A==='invoices'?'active':'' %>" href="/admin/invoices"><%- ic('invoice') %> Invoices</a>
       <a class="sb-link <%= A==='expenses'?'active':'' %>" href="/admin/expenses"><%- ic('receipt') %> Expenses</a>
-      <a class="sb-link <%= A==='reports'?'active':'' %>" href="/admin/reports"><%- ic('chart') %> Reports</a>
+      <% } %>
+      <% if (has('reports')) { %><a class="sb-link <%= A==='reports'?'active':'' %>" href="/admin/reports"><%- ic('chart') %> Reports</a><% } %>
+      <% } %>
 
+      <% if (has('inbox')) { %>
       <div class="sb-sec">Inbox</div>
       <a class="sb-link <%= A==='leads'?'active':'' %>" href="/admin/leads"><%- ic('inbox') %> Leads</a>
-      <% if (user.role === 'admin') { %>
-      <div class="sb-sec">Admin</div>
-      <a class="sb-link <%= A==='users'?'active':'' %>" href="/admin/users"><%- ic('staff') %> Staff</a>
       <% } %>
+
+      <div class="sb-sec">System</div>
+      <% if (has('staff')) { %><a class="sb-link <%= A==='users'?'active':'' %>" href="/admin/users"><%- ic('staff') %> Staff</a><% } %>
+      <a class="sb-link <%= A==='settings'?'active':'' %>" href="/admin/settings"><%- ic('gear') %> Settings</a>
     </nav>
     <div class="sb-user">
       <span class="av"><%= initials(user.name) %></span>

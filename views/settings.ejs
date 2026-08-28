@@ -1,0 +1,81 @@
+<% var title='Settings — BSG Carriers'; var active='settings';
+   var SECTIONS=['dispatch','fleet','partners','billing','reports','inbox','staff'];
+   var SEC_LABEL={dispatch:'Dispatch',fleet:'Fleet',partners:'Partners',billing:'Billing',reports:'Reports',inbox:'Inbox',staff:'Staff'};
+   var isAdmin = user.role==='admin'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head"><h1>Settings</h1></div>
+<p class="sub">Your account, and — for admins — the labels, columns and roles that shape the workspace.</p>
+
+<% if (notice) { %><div class="notice"><%= notice %></div><% } %>
+<% if (error) { %><div class="error"><%= error %></div><% } %>
+
+<!-- Your account -->
+<h2 style="font-size:15px;margin:6px 0 10px">Your account</h2>
+<div class="panel" style="padding:18px 20px;max-width:520px">
+  <div style="margin-bottom:14px"><span class="muted">Signed in as</span> <strong><%= user.name %></strong> · <%= user.email %> · <span class="tag onboarding"><%= user.role %></span></div>
+  <form method="post" action="/admin/settings/password">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field"><label>Current password</label><input name="current_password" type="password" autocomplete="current-password" required></div>
+    <div class="field"><label>New password (10+ characters)</label><input name="new_password" type="password" minlength="10" autocomplete="new-password" required></div>
+    <div class="field"><label>Confirm new password</label><input name="confirm_password" type="password" minlength="10" autocomplete="new-password" required></div>
+    <button class="btn gold" type="submit">Update password</button>
+  </form>
+</div>
+
+<% if (isAdmin) { %>
+<!-- Load labels -->
+<h2 style="font-size:15px;margin:26px 0 10px">Load labels</h2>
+<div class="panel" style="padding:16px 20px;max-width:640px">
+  <% if(!labels.length){ %><p class="muted" style="margin:0 0 12px">No labels yet.</p><% } %>
+  <% labels.forEach(function(lb){ %>
+    <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line-soft)">
+      <form method="post" action="/admin/settings/labels/<%= lb.id %>" style="display:flex;gap:10px;align-items:center;flex:1;margin:0">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <span class="tag" style="background:<%= (lb.color||'#888') %>26;color:<%= lb.color||'#9a9ba3' %>;min-width:90px;text-align:center"><%= lb.name %></span>
+        <input name="name" value="<%= lb.name %>" style="flex:1;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:8px">
+        <input name="color" type="color" value="<%= lb.color||'#DCB555' %>" style="width:42px;height:34px;background:none;border:1px solid var(--line);border-radius:8px">
+        <button class="btn sm gold" type="submit">Save</button>
+      </form>
+      <form method="post" action="/admin/settings/labels/<%= lb.id %>/delete" style="margin:0" onsubmit="return confirm('Delete label &quot;<%= lb.name %>&quot;? Loads keep their data.')"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit">✕</button></form>
+    </div>
+  <% }) %>
+  <form method="post" action="/admin/settings/labels" style="display:flex;gap:10px;align-items:end;margin-top:14px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field" style="margin:0;flex:1"><label>New label</label><input name="name" required placeholder="e.g. Reefer OB"></div>
+    <div class="field" style="margin:0"><label>Color</label><input name="color" type="color" value="#DCB555" style="width:46px;height:38px;background:none;border:1px solid var(--line);border-radius:8px"></div>
+    <button class="btn gold" type="submit">Add</button>
+  </form>
+</div>
+
+<!-- Board columns -->
+<h2 style="font-size:15px;margin:26px 0 10px">Board columns</h2>
+<div class="panel" style="padding:16px 20px;max-width:640px;display:flex;gap:10px;flex-wrap:wrap">
+  <% boards.forEach(function(b){ %>
+    <a class="btn" href="/admin/boards/<%= b.id %>/columns">Edit <%= b.name %> columns</a>
+  <% }) %>
+</div>
+<% } %>
+
+<!-- Roles reference -->
+<h2 style="font-size:15px;margin:26px 0 10px">Roles &amp; access</h2>
+<p class="sub" style="margin-bottom:12px">What each role can open. Set a person's role on the <a href="/admin/users">Staff</a> page<% if(!isAdmin){ %> (admins only)<% } %>.</p>
+<div class="panel" style="overflow-x:auto">
+  <table>
+    <thead><tr><th>Role</th><th>What it's for</th><% SECTIONS.forEach(function(s){ %><th style="text-align:center"><%= SEC_LABEL[s] %></th><% }) %></tr></thead>
+    <tbody>
+      <% roles.forEach(function(r){ %>
+        <tr>
+          <td><span class="tag <%= r.key==='admin'?'onboarding':'read' %>"><%= r.label %></span></td>
+          <td class="muted" style="font-size:13px"><%= r.blurb %></td>
+          <% SECTIONS.forEach(function(s){ var has=(roleSections[r.key]||[]).indexOf(s)>=0; %>
+            <td style="text-align:center;color:<%= has?'var(--gold)':'var(--faint)' %>"><%= has?'✓':'—' %></td>
+          <% }) %>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<p class="muted" style="font-size:12px;margin-top:8px">Viewer is read-only — it can open sections but not change anything.</p>
+
+<%- include('partials/foot') %>

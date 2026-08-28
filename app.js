@@ -32,6 +32,8 @@ const dvirRouter = require('./src/routes/dvir');
 const expensesRouter = require('./src/routes/expenses');
 const maintenanceRouter = require('./src/routes/maintenance');
 const reportsRouter = require('./src/routes/reports');
+const settingsRouter = require('./src/routes/settings');
+const perms = require('./src/lib/perms');
 const portalRouter = require('./src/routes/portal');
 
 const app = express();
@@ -108,14 +110,21 @@ function csrf(req, res, next) {
   next();
 }
 
-app.use('/admin', sessionMw, csrf, adminRouter);
-app.use('/admin', sessionMw, csrf, dispatchRouter); // brokers, loads, dispatch board
-app.use('/admin', sessionMw, csrf, invoicesRouter); // dispatch-fee invoices
-app.use('/admin', sessionMw, csrf, tripsRouter);    // trips (multi-load routes)
-app.use('/admin', sessionMw, csrf, dvirRouter);     // DVIR inspection reports
-app.use('/admin', sessionMw, csrf, expensesRouter); // expenses
-app.use('/admin', sessionMw, csrf, maintenanceRouter); // fleet maintenance
-app.use('/admin', sessionMw, csrf, reportsRouter);  // analytics
+// perms.guard runs in each admin chain right after csrf: it maps the path to a
+// section and 403s a role that isn't allowed it (and blocks writes for the
+// read-only viewer), and exposes the role's sections to the views for the nav.
+// It is folded into each existing chain rather than mounted separately so that
+// cookie-session only runs once per traversed mount (a second sessionMw pass
+// would clobber the login being written on the response).
+app.use('/admin', sessionMw, csrf, perms.guard, adminRouter);
+app.use('/admin', sessionMw, csrf, perms.guard, settingsRouter); // account + labels + settings
+app.use('/admin', sessionMw, csrf, perms.guard, dispatchRouter); // brokers, loads, dispatch board
+app.use('/admin', sessionMw, csrf, perms.guard, invoicesRouter); // dispatch-fee invoices
+app.use('/admin', sessionMw, csrf, perms.guard, tripsRouter);    // trips (multi-load routes)
+app.use('/admin', sessionMw, csrf, perms.guard, dvirRouter);     // DVIR inspection reports
+app.use('/admin', sessionMw, csrf, perms.guard, expensesRouter); // expenses
+app.use('/admin', sessionMw, csrf, perms.guard, maintenanceRouter); // fleet maintenance
+app.use('/admin', sessionMw, csrf, perms.guard, reportsRouter);  // analytics
 app.use('/portal', sessionMw, csrf, portalRouter);
 
 // --- Brand asset ------------------------------------------------------------

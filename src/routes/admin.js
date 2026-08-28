@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
 const { verifyLogin, requireLogin, requireRole, sessionUser, hashPassword, findByEmail } = require('../lib/auth');
 const { carrierEmail } = require('../lib/notify');
+const perms = require('../lib/perms');
 
 const router = express.Router();
 
@@ -148,27 +149,23 @@ router.get('/leads.csv', async (req, res) => {
 });
 
 // --- Staff user management (admin role only) --------------------------------
+async function loadUsers() {
+  const [users] = await pool.query('SELECT id, email, name, role, active, created_at, last_login FROM staff_users ORDER BY created_at');
+  return users;
+}
 router.get('/users', requireRole('admin'), async (req, res) => {
-  const [users] = await pool.query(
-    'SELECT id, email, name, role, active, created_at, last_login FROM staff_users ORDER BY created_at'
-  );
-  res.render('users', { user: req.session.user, users, csrfToken: req.csrfToken(), notice: req.query.notice || null, error: null });
+  res.render('users', { user: req.session.user, users: await loadUsers(), roles: perms.ROLES, csrfToken: req.csrfToken(), notice: req.query.notice || null, error: null });
 });
 
 router.post('/users', requireRole('admin'), async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const name = String(req.body.name || '').trim().slice(0, 160);
-  const role = req.body.role === 'admin' ? 'admin' : 'staff';
+  const role = perms.ROLE_KEYS.includes(req.body.role) ? req.body.role : 'dispatcher';
   const password = String(req.body.password || '');
+  const fail = async (error) => res.status(400).render('users', { user: req.session.user, users: await loadUsers(), roles: perms.ROLES, csrfToken: req.csrfToken(), notice: null, error });
   try {
-    if (!email || !name || password.length < 10) {
-      const [users] = await pool.query('SELECT id, email, name, role, active, created_at, last_login FROM staff_users ORDER BY created_at');
-      return res.status(400).render('users', { user: req.session.user, users, csrfToken: req.csrfToken(), notice: null, error: 'Name, email and a 10+ character password are required.' });
-    }
-    if (await findByEmail(email)) {
-      const [users] = await pool.query('SELECT id, email, name, role, active, created_at, last_login FROM staff_users ORDER BY created_at');
-      return res.status(400).render('users', { user: req.session.user, users, csrfToken: req.csrfToken(), notice: null, error: 'That email already has an account.' });
-    }
+    if (!email || !name || password.length < 10) return fail('Name, email and a 10+ character password are required.');
+    if (await findByEmail(email)) return fail('That email already has an account.');
     await pool.query('INSERT INTO staff_users (email, name, password_hash, role) VALUES (?,?,?,?)',
       [email, name, await hashPassword(password), role]);
     res.redirect('/admin/users?notice=' + encodeURIComponent('Added ' + email));
@@ -176,6 +173,16 @@ router.post('/users', requireRole('admin'), async (req, res) => {
     console.error('[admin] add user error:', err.message);
     res.status(500).send('Could not add the user.');
   }
+});
+
+// Change an existing member's role. An admin cannot demote themselves (so the
+// last admin can never lock the org out of staff management).
+router.post('/users/:id/role', requireRole('admin'), async (req, res) => {
+  const role = perms.ROLE_KEYS.includes(req.body.role) ? req.body.role : null;
+  if (role && Number(req.params.id) !== req.session.user.id) {
+    await pool.query('UPDATE staff_users SET role = ? WHERE id = ?', [role, req.params.id]);
+  }
+  res.redirect('/admin/users');
 });
 
 router.post('/users/:id/toggle', requireRole('admin'), async (req, res) => {

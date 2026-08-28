@@ -476,5 +476,12 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
 );
 CREATE INDEX IF NOT EXISTS idx_maint_truck ON maintenance_records (truck_id, service_date DESC);
 
+-- Role-based access: widen the staff role set beyond admin/staff. Done as a
+-- drop+add so it re-applies cleanly on every migrate. 'staff' is kept as a
+-- legacy alias (treated as manager by the permission layer).
+ALTER TABLE staff_users DROP CONSTRAINT IF EXISTS staff_users_role_check;
+ALTER TABLE staff_users ADD CONSTRAINT staff_users_role_check
+  CHECK (role IN ('admin','manager','dispatcher','billing','viewer','staff'));
+
 -- Sessions are held in signed cookies (cookie-session), so there is no session
 -- table on Postgres — nothing to define here.

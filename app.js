@@ -28,6 +28,10 @@ const adminRouter = require('./src/routes/admin');
 const dispatchRouter = require('./src/routes/dispatch');
 const invoicesRouter = require('./src/routes/invoices');
 const tripsRouter = require('./src/routes/trips');
+const dvirRouter = require('./src/routes/dvir');
+const expensesRouter = require('./src/routes/expenses');
+const maintenanceRouter = require('./src/routes/maintenance');
+const reportsRouter = require('./src/routes/reports');
 const portalRouter = require('./src/routes/portal');
 
 const app = express();
@@ -108,6 +112,10 @@ app.use('/admin', sessionMw, csrf, adminRouter);
 app.use('/admin', sessionMw, csrf, dispatchRouter); // brokers, loads, dispatch board
 app.use('/admin', sessionMw, csrf, invoicesRouter); // dispatch-fee invoices
 app.use('/admin', sessionMw, csrf, tripsRouter);    // trips (multi-load routes)
+app.use('/admin', sessionMw, csrf, dvirRouter);     // DVIR inspection reports
+app.use('/admin', sessionMw, csrf, expensesRouter); // expenses
+app.use('/admin', sessionMw, csrf, maintenanceRouter); // fleet maintenance
+app.use('/admin', sessionMw, csrf, reportsRouter);  // analytics
 app.use('/portal', sessionMw, csrf, portalRouter);
 
 // --- Brand asset ------------------------------------------------------------

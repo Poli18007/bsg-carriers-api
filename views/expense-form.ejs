@@ -1,0 +1,33 @@
+<% var title=(isNew?'Add expense':'Edit expense')+' — BSG Carriers'; var active='expenses'; var e=expense||{};
+   function dv(x){ if(!x) return ''; var d=new Date(x); return isNaN(d)?'':d.toISOString().slice(0,10); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/expenses">← Expenses</a>
+  <h1 style="margin-left:4px"><%= isNew ? 'Add an expense' : 'Edit expense' %></h1>
+</div>
+
+<form method="post" action="<%= isNew ? '/admin/expenses' : '/admin/expenses/' + e.id %>" class="panel" style="max-width:720px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="field"><label>Category</label><select name="category"><% categories.forEach(function(c){ %><option value="<%= c %>" <%= (e.category||'other')===c?'selected':'' %>><%= c %></option><% }) %></select></div>
+    <div class="field"><label>Amount</label><input name="amount" value="<%= e.amount!=null?e.amount:'' %>" placeholder="0.00"></div>
+    <div class="field"><label>Date</label><input type="date" name="expense_date" value="<%= dv(e.expense_date) || dv(new Date()) %>"></div>
+  </div>
+  <div class="field"><label>Description</label><input name="description" value="<%= e.description||'' %>" placeholder="e.g. Fuel — Pilot #4432"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px">
+    <div class="field"><label>Truck</label><select name="truck_id"><option value="">— none —</option><% trucks.forEach(function(tk){ %><option value="<%= tk.id %>" <%= String(e.truck_id)===String(tk.id)?'selected':'' %>><%= tk.number %></option><% }) %></select></div>
+    <div class="field"><label>Trip</label><select name="trip_id"><option value="">— none —</option><% trips.forEach(function(t){ %><option value="<%= t.id %>" <%= String(e.trip_id)===String(t.id)?'selected':'' %>>TRIP-<%= t.seq %></option><% }) %></select></div>
+    <div class="field"><label>Carrier</label><select name="carrier_id"><option value="">— none —</option><% carriers.forEach(function(c){ %><option value="<%= c.id %>" <%= String(e.carrier_id)===String(c.id)?'selected':'' %>><%= c.company_name %></option><% }) %></select></div>
+    <div class="field"><label>Load ID</label><input name="load_id" value="<%= e.load_id||'' %>" placeholder="optional"></div>
+  </div>
+  <button class="btn gold" type="submit"><%= isNew ? 'Add expense' : 'Save changes' %></button>
+</form>
+
+<% if (!isNew) { %>
+<form method="post" action="/admin/expenses/<%= e.id %>/delete" style="max-width:720px;margin-top:12px" onsubmit="return confirm('Delete this expense?')">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm danger" type="submit">Delete expense</button>
+</form>
+<% } %>
+
+<%- include('partials/foot') %>

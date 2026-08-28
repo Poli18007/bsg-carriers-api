@@ -1,0 +1,170 @@
+<% var title='Load '+(load.ref||('#'+load.id))+' — BSG Carriers'; var active='loads'; var l=load;
+   function money(n){ return n==null?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+   function when(x){ return x? new Date(x).toLocaleString() : ''; }
+   function d(x){ return x?new Date(x).toLocaleDateString():''; }
+   function addr(a,c,s,z){ return [a,[c,s].filter(Boolean).join(', '),z].filter(Boolean).join(' · ')||'—'; }
+   var cat = l.col_category;
+   var stage = (cat==='delivered'||cat==='done') ? 3 : (cat==='in_transit' ? 2 : (l.carrier_id ? 1 : 0));
+   var STEPS = ['Booked','Assigned','In transit','Delivered'];
+   var lane = (l.pickup_city||l.origin||'—') + ' → ' + (l.delivery_city||l.destination||'—'); %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/loads">← Loads</a>
+  <h1 style="margin-left:4px"><%= l.ref || ('Load #' + l.id) %></h1>
+  <% if(l.col_name){ %><span class="tag" style="background:<%= (l.col_color||'#888') %>26;color:<%= l.col_color||'#9a9ba3' %>"><%= l.col_name %></span><% } %>
+  <% if(l.label_name){ %><span class="tag" style="background:<%= (l.label_color||'#888') %>26;color:<%= l.label_color||'#9a9ba3' %>"><%= l.label_name %></span><% } %>
+  <a class="btn sm gold spacer" href="/admin/loads/<%= l.id %>/edit">Edit</a>
+</div>
+
+<!-- Status stepper -->
+<div class="panel" style="padding:20px 24px;margin-bottom:18px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+    <div style="font-size:20px;font-weight:800;color:var(--heading)"><%= l.ref || ('#'+l.id) %></div>
+    <div class="muted"><%= (l.customer_name||l.customer)?( (l.customer_name||l.customer)+' · '):'' %><%= lane %></div>
+  </div>
+  <div class="stepper">
+    <% STEPS.forEach(function(s,i){ %>
+      <div class="step <%= i<stage?'done':(i===stage?'current':'') %>">
+        <span class="dot"><%= i<stage?'✓':(i+1) %></span>
+        <span class="lbl"><%= s %></span>
+      </div>
+    <% }) %>
+  </div>
+</div>
+
+<!-- Quick move -->
+<form method="post" action="/admin/loads/<%= l.id %>/column" class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 16px;margin-bottom:18px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <span class="muted" style="margin-right:4px">Move to:</span>
+  <% columns.forEach(function(col){ %><button class="btn sm" name="column_id" value="<%= col.id %>" <%= String(l.column_id)===String(col.id)?'disabled':'' %>><%= col.name %></button><% }) %>
+</form>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start">
+  <!-- Load information -->
+  <div class="panel" style="padding:18px 20px">
+    <h2 style="font-size:15px;margin:0 0 12px">Load information</h2>
+    <dl class="kv">
+      <dt>Load #</dt><dd><%= l.ref || ('#'+l.id) %></dd>
+      <% if(l.pu_number){ %><dt>PU #</dt><dd><%= l.pu_number %></dd><% } %>
+      <dt>Customer</dt><dd><%= l.customer_name || l.customer || '—' %></dd>
+      <dt>Column</dt><dd><% if(l.col_name){ %><span class="tag" style="background:<%= (l.col_color||'#888') %>26;color:<%= l.col_color||'#9a9ba3' %>"><%= l.col_name %></span><% } else { %>—<% } %></dd>
+      <dt>Commodity</dt><dd><%= l.commodity || '—' %><% if(l.weight){ %> · <%= l.weight %><% } %></dd>
+      <dt>Equipment</dt><dd><%= l.equipment || '—' %></dd>
+      <dt>Rate</dt><dd style="color:var(--gold);font-weight:700"><%= money(l.rate) %></dd>
+      <dt>Distance</dt><dd><%= l.miles!=null ? (l.miles + ' mi') : '—' %></dd>
+      <% if(l.trip_seq){ %><dt>Trip</dt><dd><a href="/admin/trips/<%= l.trip_id %>">TRIP-<%= l.trip_seq %></a></dd><% } %>
+      <% if(invoice){ %><dt>Invoice</dt><dd><a href="/admin/invoices/<%= invoice.id %>">BSG-<%= invoice.seq %> ↗</a></dd><% } %>
+    </dl>
+  </div>
+
+  <!-- Assignment -->
+  <div class="panel" style="padding:18px 20px">
+    <h2 style="font-size:15px;margin:0 0 12px">Assignment</h2>
+    <dl class="kv">
+      <dt>Carrier</dt><dd><% if(l.carrier_id){ %><a href="/admin/carriers/<%= l.carrier_id %>"><%= l.carrier_name %></a><% } else { %><span class="muted">unassigned</span><% } %></dd>
+      <dt>Driver</dt><dd><%= l.driver_name || '—' %><% if(l.driver_phone){ %> <span class="muted">· <%= l.driver_phone %></span><% } %></dd>
+      <dt>Truck</dt><dd><%= l.truck_number || '—' %></dd>
+      <dt>Trailer</dt><dd><%= l.trailer_number || '—' %></dd>
+      <dt>Dispatcher</dt><dd><%= l.dispatcher_name || '—' %></dd>
+      <dt>Broker</dt><dd><%= l.broker_name || '—' %></dd>
+    </dl>
+  </div>
+</div>
+
+<!-- Route -->
+<h2 style="font-size:15px;margin:22px 0 10px">Route</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+  <div class="panel" style="padding:18px 20px">
+    <div style="display:flex;align-items:center;gap:8px;color:var(--gold);font-weight:700;margin-bottom:8px"><span class="pin p">P</span> Pickup</div>
+    <div style="font-weight:600"><%= l.pickup_name || l.pickup_city || l.origin || '—' %></div>
+    <div class="muted" style="font-size:13px"><%= addr(l.pickup_address, l.pickup_city, l.pickup_state, l.pickup_zip) %></div>
+    <div style="margin-top:8px"><span class="muted">Appt:</span> <%= l.pickup_appt || d(l.pickup_date) || '—' %><% if(l.pickup_ref){ %> · <span class="muted">PU#</span> <%= l.pickup_ref %><% } %></div>
+    <% if(l.pickup_instructions){ %><div class="muted" style="margin-top:6px;font-size:13px"><%= l.pickup_instructions %></div><% } %>
+  </div>
+  <div class="panel" style="padding:18px 20px">
+    <div style="display:flex;align-items:center;gap:8px;color:#a9cdf0;font-weight:700;margin-bottom:8px"><span class="pin dd">D</span> Delivery</div>
+    <div style="font-weight:600"><%= l.delivery_name || l.delivery_city || l.destination || '—' %></div>
+    <div class="muted" style="font-size:13px"><%= addr(l.delivery_address, l.delivery_city, l.delivery_state, l.delivery_zip) %></div>
+    <div style="margin-top:8px"><span class="muted">Appt:</span> <%= l.delivery_appt || d(l.delivery_date) || '—' %><% if(l.delivery_ref){ %> · <span class="muted">DEL#</span> <%= l.delivery_ref %><% } %></div>
+    <% if(l.delivery_instructions){ %><div class="muted" style="margin-top:6px;font-size:13px"><%= l.delivery_instructions %></div><% } %>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px;align-items:start">
+  <!-- Documents -->
+  <div class="panel" style="padding:18px 20px">
+    <h2 style="font-size:15px;margin:0 0 10px">Documents</h2>
+    <% docs.forEach(function(dc){ %>
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-soft)">
+        <div><a href="/admin/loads/<%= l.id %>/documents/<%= dc.id %>" target="_blank"><%= dc.filename %></a>
+          <div class="muted" style="font-size:12px"><%= dc.doc_type.replace('_',' ') %> · <%= Math.round(dc.size_bytes/1024) %> KB</div></div>
+        <form method="post" action="/admin/loads/<%= l.id %>/documents/<%= dc.id %>/delete" style="margin:0 0 0 auto"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit">✕</button></form>
+      </div>
+    <% }) %>
+    <form method="post" action="/admin/loads/<%= l.id %>/documents?_csrf=<%= csrfToken %>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+      <select name="doc_type"><option value="rate_con">Rate con</option><option value="bol">BOL</option><option value="pod">POD</option><option value="other">Other</option></select>
+      <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png" required>
+      <button class="btn sm gold" type="submit">Upload</button>
+    </form>
+    <p class="muted" style="font-size:12px;margin-bottom:0">Carriers can download the rate con from their portal.</p>
+  </div>
+
+  <!-- Accessorials -->
+  <div class="panel" style="padding:18px 20px">
+    <h2 style="font-size:15px;margin:0 0 10px">Accessorials &amp; carrier pay</h2>
+    <table style="width:100%"><% accessorials.forEach(function(a){ %>
+      <tr><td class="muted" style="padding:5px 0;border:0"><%= a.kind %><% if(a.notes){ %> · <%= a.notes %><% } %></td>
+        <td style="text-align:right;padding:5px 0;border:0"><%= money(a.amount) %></td>
+        <td style="text-align:right;width:30px;border:0"><form method="post" action="/admin/loads/<%= l.id %>/accessorials/<%= a.id %>/delete" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit">✕</button></form></td></tr>
+    <% }) %></table>
+    <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;margin-top:6px"><span class="muted">Linehaul</span><span><%= money(l.rate) %></span></div>
+    <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--gold)"><span>Carrier is owed</span><span><%= money(owed) %></span></div>
+    <form method="post" action="/admin/loads/<%= l.id %>/accessorials" style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <select name="kind"><option value="detention">Detention</option><option value="layover">Layover</option><option value="tonu">TONU</option><option value="lumper">Lumper</option><option value="fuel">Fuel</option><option value="other">Other</option></select>
+      <input name="amount" placeholder="$" style="width:90px">
+      <input name="notes" placeholder="note" style="flex:1;min-width:100px">
+      <button class="btn sm gold" type="submit">Add</button>
+    </form>
+  </div>
+</div>
+
+<!-- Timeline -->
+<h2 style="font-size:15px;margin:22px 0 10px">Timeline &amp; check calls</h2>
+<div class="panel" style="padding:18px 20px">
+  <form method="post" action="/admin/loads/<%= l.id %>/events" style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <select name="kind"><option value="check_call">Check call</option><option value="note">Note</option></select>
+    <input name="body" placeholder="e.g. Driver at pickup 08:10, loaded" style="flex:1;min-width:200px" required>
+    <button class="btn sm gold" type="submit">Add</button>
+  </form>
+  <% if(!events.length){ %><p class="muted" style="margin:0">No activity yet.</p><% } %>
+  <% events.forEach(function(e){ %>
+    <div style="display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line-soft)">
+      <span class="tag <%= e.kind==='status'?'dispatched':(e.kind==='check_call'?'booked':'read') %>" style="height:fit-content"><%= e.kind.replace('_',' ') %></span>
+      <div><div><%= e.body %></div><div class="muted" style="font-size:12px"><%= when(e.created_at) %><% if(e.staff_email){ %> · <%= e.staff_email %><% } %></div></div>
+    </div>
+  <% }) %>
+</div>
+
+<style>
+  .stepper{display:flex}
+  .step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;text-align:center}
+  .step:not(:last-child)::after{content:"";position:absolute;top:15px;left:50%;width:100%;height:2px;background:var(--line);z-index:0}
+  .step.done:not(:last-child)::after{background:var(--gold)}
+  .step .dot{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--panel);border:2px solid var(--line);color:var(--muted);font-weight:800;font-size:13px;position:relative;z-index:1}
+  .step.done .dot{background:var(--gold);border-color:var(--gold);color:#1a1400}
+  .step.current .dot{border-color:var(--gold);color:var(--gold)}
+  .step .lbl{font-size:12px;margin-top:8px;color:var(--muted)}
+  .step.current .lbl,.step.done .lbl{color:var(--text);font-weight:600}
+  .kv{display:grid;grid-template-columns:110px 1fr;gap:0;margin:0}
+  .kv dt{color:var(--muted);padding:8px 0;font-size:13px}
+  .kv dd{margin:0;padding:8px 0;font-size:13.5px;text-align:right}
+  .pin{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+  .pin.p{background:var(--gold-soft);color:var(--gold)}
+  .pin.dd{background:rgba(127,176,224,.18);color:#a9cdf0}
+  @media(max-width:860px){ div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr !important} }
+</style>
+
+<%- include('partials/foot') %>

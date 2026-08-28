@@ -1,0 +1,35 @@
+<% var title=(isNew?'New maintenance record':'Edit record')+' — BSG Carriers'; var active='maintenance'; var m=rec||{};
+   function dv(x){ if(!x) return ''; var d=new Date(x); return isNaN(d)?'':d.toISOString().slice(0,10); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/maintenance">← Maintenance</a>
+  <h1 style="margin-left:4px"><%= isNew ? 'New maintenance record' : 'Edit record' %></h1>
+</div>
+
+<form method="post" action="<%= isNew ? '/admin/maintenance' : '/admin/maintenance/' + m.id %>" class="panel" style="max-width:760px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="field"><label>Truck</label><select name="truck_id"><option value="">— none —</option><% trucks.forEach(function(tk){ %><option value="<%= tk.id %>" <%= String(m.truck_id)===String(tk.id)?'selected':'' %>><%= tk.number %></option><% }) %></select></div>
+    <div class="field"><label>Trailer</label><select name="trailer_id"><option value="">— none —</option><% trailers.forEach(function(tr){ %><option value="<%= tr.id %>" <%= String(m.trailer_id)===String(tr.id)?'selected':'' %>><%= tr.number %></option><% }) %></select></div>
+    <div class="field"><label>Type</label><select name="kind"><% kinds.forEach(function(k){ %><option value="<%= k %>" <%= (m.kind||'service')===k?'selected':'' %>><%= k %></option><% }) %></select></div>
+  </div>
+  <div class="field"><label>Description</label><input name="description" value="<%= m.description||'' %>" placeholder="e.g. Oil change + DOT inspection"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="field"><label>Vendor</label><input name="vendor" value="<%= m.vendor||'' %>"></div>
+    <div class="field"><label>Cost</label><input name="cost" value="<%= m.cost!=null?m.cost:'' %>" placeholder="0.00"></div>
+    <div class="field"><label>Odometer</label><input name="odometer" value="<%= m.odometer!=null?m.odometer:'' %>"></div>
+    <div class="field"><label>Service date</label><input type="date" name="service_date" value="<%= dv(m.service_date) || dv(new Date()) %>"></div>
+    <div class="field"><label>Next due</label><input type="date" name="next_due_date" value="<%= dv(m.next_due_date) %>"></div>
+    <div class="field"><label>Status</label><select name="status"><% statuses.forEach(function(s){ %><option value="<%= s %>" <%= (m.status||'completed')===s?'selected':'' %>><%= s.replace('_',' ') %></option><% }) %></select></div>
+  </div>
+  <button class="btn gold" type="submit"><%= isNew ? 'Save record' : 'Save changes' %></button>
+</form>
+
+<% if (!isNew) { %>
+<form method="post" action="/admin/maintenance/<%= m.id %>/delete" style="max-width:760px;margin-top:12px" onsubmit="return confirm('Delete this record?')">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm danger" type="submit">Delete record</button>
+</form>
+<% } %>
+
+<%- include('partials/foot') %>

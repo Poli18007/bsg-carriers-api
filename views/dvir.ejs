@@ -1,0 +1,44 @@
+<% var title='DVIR reports — BSG Carriers'; var active='dvir';
+   function when(x){ return x? new Date(x).toLocaleString(undefined,{month:'numeric',day:'numeric',year:'2-digit',hour:'numeric',minute:'2-digit'}) : '—'; } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>DVIR reports</h1>
+  <a class="btn gold spacer" href="/admin/dvir/new">+ New inspection</a>
+</div>
+<p class="sub">Pre-trip and post-trip driver vehicle inspection reports.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="n"><%= counts.total %></div><div class="l">Total</div></div>
+  <div class="kpi <%= counts.with_defects?'accent':'' %>"><div class="n"><%= counts.with_defects %></div><div class="l">With defects</div></div>
+  <div class="kpi"><div class="n"><%= counts.open %></div><div class="l">Open</div></div>
+</div>
+
+<form method="get" action="/admin/dvir" class="filters">
+  <input type="search" name="q" value="<%= filter.q %>" placeholder="Search truck or driver…">
+  <select name="kind"><option value="">All types</option><option value="pre_trip" <%= filter.kind==='pre_trip'?'selected':'' %>>Pre-Trip</option><option value="post_trip" <%= filter.kind==='post_trip'?'selected':'' %>>Post-Trip</option></select>
+  <select name="status"><option value="">Any status</option><% ['draft','submitted','reviewed','cleared'].forEach(function(s){ %><option value="<%= s %>" <%= filter.status===s?'selected':'' %>><%= s %></option><% }) %></select>
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn" href="/admin/dvir">Clear</a>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Date</th><th>Type</th><th>Truck</th><th>Driver</th><th>Defects</th><th>Status</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="6" class="muted" style="padding:28px;text-align:center">No inspections yet. <a href="/admin/dvir/new">Log one</a>.</td></tr><% } %>
+      <% rows.forEach(function(r){ %>
+        <tr class="row" onclick="location.href='/admin/dvir/<%= r.id %>'">
+          <td class="muted" style="white-space:nowrap"><%= when(r.inspected_at) %></td>
+          <td><span class="tag <%= r.kind==='pre_trip'?'dispatched':'read' %>"><%= r.kind==='pre_trip'?'Pre-Trip':'Post-Trip' %></span></td>
+          <td><strong><%= r.truck_number || '—' %></strong></td>
+          <td class="muted"><%= r.driver_name || '—' %></td>
+          <td><% if(r.defects){ %><span style="color:var(--danger);font-weight:700">⚠ <%= r.defects %></span><% } else { %><span class="muted">✓ None</span><% } %></td>
+          <td><span class="tag <%= r.status==='cleared'?'approved':(r.status==='submitted'?'dispatched':(r.status==='draft'?'booked':'read')) %>"><%= r.status %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

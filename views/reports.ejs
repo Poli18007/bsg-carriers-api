@@ -1,0 +1,112 @@
+<% var title='Reports — BSG Carriers'; var active='reports';
+   function money(n){ return '$'+Number(n||0).toLocaleString(undefined,{maximumFractionDigits:0}); }
+   var maxMonth = Math.max(1, ...byMonth.map(function(m){return Number(m.revenue);}));
+   var maxCarrier = Math.max(1, ...topCarriers.map(function(c){return Number(c.revenue);}));
+   var maxCust = Math.max(1, ...topCustomers.map(function(c){return Number(c.revenue);}));
+   var maxCol = Math.max(1, ...byColumn.map(function(c){return c.n;}));
+   var maxExp = Math.max(1, ...expenseCat.map(function(c){return Number(c.total);}));
+   var net = Number(totals.load_revenue) - Number(totals.expenses); %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head"><h1>Reports</h1></div>
+<p class="sub">How the operation is performing — revenue, costs, carriers and customers.</p>
+
+<div class="kpis">
+  <div class="kpi accent"><div class="n"><%= money(totals.load_revenue) %></div><div class="l">Load revenue</div></div>
+  <div class="kpi"><div class="n"><%= money(totals.expenses) %></div><div class="l">Expenses</div></div>
+  <div class="kpi"><div class="n"><%= money(net) %></div><div class="l">Net (rev − exp)</div></div>
+  <div class="kpi"><div class="n"><%= money(totals.outstanding) %></div><div class="l">Invoices outstanding</div></div>
+  <div class="kpi"><div class="n"><%= totals.loads %></div><div class="l">Loads</div></div>
+  <div class="kpi"><div class="n"><%= totals.trips %></div><div class="l">Trips</div></div>
+</div>
+
+<h2 style="font-size:15px;margin:8px 0 10px">Revenue by month</h2>
+<div class="panel" style="padding:18px">
+  <% if(!byMonth.length){ %><p class="muted" style="margin:0">No load data yet.</p><% } else { %>
+  <div class="bars">
+    <% byMonth.forEach(function(m){ %>
+      <div class="bar-col">
+        <div class="bar-val"><%= money(m.revenue) %></div>
+        <div class="bar" style="height:<%= Math.max(4, Math.round(Number(m.revenue)/maxMonth*160)) %>px"></div>
+        <div class="bar-lbl"><%= m.label %></div>
+        <div class="bar-sub"><%= m.loads %> loads</div>
+      </div>
+    <% }) %>
+  </div>
+  <% } %>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px;align-items:start">
+  <div>
+    <h2 style="font-size:15px;margin:0 0 10px">Top carriers</h2>
+    <div class="panel" style="padding:8px 16px">
+      <% if(!topCarriers.length){ %><p class="muted" style="padding:10px 0;margin:0">No carrier revenue yet.</p><% } %>
+      <% topCarriers.forEach(function(c){ %>
+        <div class="rankrow">
+          <div class="rank-top"><span class="rank-name"><%= c.name %></span><span class="rank-val"><%= money(c.revenue) %></span></div>
+          <div class="track"><div class="fill" style="width:<%= Math.round(Number(c.revenue)/maxCarrier*100) %>%"></div></div>
+          <div class="muted" style="font-size:11.5px"><%= c.loads %> loads</div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+  <div>
+    <h2 style="font-size:15px;margin:0 0 10px">Top customers</h2>
+    <div class="panel" style="padding:8px 16px">
+      <% if(!topCustomers.length){ %><p class="muted" style="padding:10px 0;margin:0">No customer revenue yet.</p><% } %>
+      <% topCustomers.forEach(function(c){ %>
+        <div class="rankrow">
+          <div class="rank-top"><span class="rank-name"><%= c.name %></span><span class="rank-val"><%= money(c.revenue) %></span></div>
+          <div class="track"><div class="fill" style="width:<%= Math.round(Number(c.revenue)/maxCust*100) %>%"></div></div>
+          <div class="muted" style="font-size:11.5px"><%= c.loads %> loads</div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:22px;align-items:start">
+  <div>
+    <h2 style="font-size:15px;margin:0 0 10px">Loads by column</h2>
+    <div class="panel" style="padding:8px 16px">
+      <% byColumn.forEach(function(c){ %>
+        <div class="rankrow">
+          <div class="rank-top"><span class="rank-name"><span class="dot" style="background:<%= c.color||'#888' %>"></span> <%= c.name %></span><span class="rank-val"><%= c.n %></span></div>
+          <div class="track"><div class="fill" style="width:<%= Math.round(c.n/maxCol*100) %>%;background:<%= c.color||'var(--gold)' %>"></div></div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+  <div>
+    <h2 style="font-size:15px;margin:0 0 10px">Expenses by category</h2>
+    <div class="panel" style="padding:8px 16px">
+      <% if(!expenseCat.length){ %><p class="muted" style="padding:10px 0;margin:0">No expenses logged yet.</p><% } %>
+      <% expenseCat.forEach(function(c){ %>
+        <div class="rankrow">
+          <div class="rank-top"><span class="rank-name"><%= c.name %></span><span class="rank-val"><%= money(c.total) %></span></div>
+          <div class="track"><div class="fill" style="width:<%= Math.round(Number(c.total)/maxExp*100) %>%"></div></div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<style>
+  .bars{display:flex;gap:18px;align-items:flex-end;overflow-x:auto;padding-top:10px;min-height:210px}
+  .bar-col{flex:1;min-width:60px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px}
+  .bar-val{font-size:11px;color:var(--muted);font-weight:600}
+  .bar{width:70%;max-width:54px;background:linear-gradient(180deg,var(--gold-bright,var(--gold)),var(--gold));border-radius:6px 6px 0 0}
+  .bar-lbl{font-size:12px;font-weight:700;color:var(--heading)}
+  .bar-sub{font-size:11px;color:var(--faint)}
+  .rankrow{padding:10px 0;border-bottom:1px solid var(--line-soft)}
+  .rankrow:last-child{border-bottom:0}
+  .rank-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:5px}
+  .rank-name{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:7px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rank-name .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .rank-val{font-weight:700;color:var(--gold);white-space:nowrap}
+  .track{height:7px;background:var(--bg);border-radius:999px;overflow:hidden}
+  .track .fill{height:100%;background:var(--gold);border-radius:999px}
+  @media(max-width:860px){ div[style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr !important} }
+</style>
+
+<%- include('partials/foot') %>

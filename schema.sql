@@ -413,5 +413,68 @@ CREATE TABLE IF NOT EXISTS invoice_payments (
 );
 CREATE INDEX IF NOT EXISTS idx_invpay_invoice ON invoice_payments (invoice_id);
 
+-- ===========================================================================
+-- DVIR — driver vehicle inspection reports (pre-trip / post-trip)
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS dvir_reports (
+  id            SERIAL PRIMARY KEY,
+  kind          TEXT NOT NULL DEFAULT 'pre_trip' CHECK (kind IN ('pre_trip','post_trip')),
+  truck_id      INTEGER REFERENCES trucks(id) ON DELETE SET NULL,
+  trailer_id    INTEGER REFERENCES trailers(id) ON DELETE SET NULL,
+  driver_id     INTEGER REFERENCES drivers(id) ON DELETE SET NULL,
+  trip_id       INTEGER REFERENCES trips(id) ON DELETE SET NULL,
+  odometer      INTEGER,
+  location      TEXT,
+  defect_items  TEXT,                                  -- list of components with defects
+  remarks       TEXT,
+  satisfactory  BOOLEAN NOT NULL DEFAULT true,          -- vehicle condition satisfactory to operate
+  status        TEXT NOT NULL DEFAULT 'submitted'
+                  CHECK (status IN ('draft','submitted','reviewed','cleared')),
+  inspected_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_dvir_truck ON dvir_reports (truck_id, inspected_at DESC);
+CREATE INDEX IF NOT EXISTS idx_dvir_kind ON dvir_reports (kind, status);
+
+-- ===========================================================================
+-- Expenses — company / load / trip costs
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS expenses (
+  id            SERIAL PRIMARY KEY,
+  category      TEXT NOT NULL DEFAULT 'other'
+                  CHECK (category IN ('fuel','tolls','repair','insurance','permit','lumper','office','misc','other')),
+  amount        NUMERIC(10,2) NOT NULL DEFAULT 0,
+  description   TEXT,
+  expense_date  DATE NOT NULL DEFAULT CURRENT_DATE,
+  load_id       BIGINT REFERENCES loads(id) ON DELETE SET NULL,
+  trip_id       INTEGER REFERENCES trips(id) ON DELETE SET NULL,
+  truck_id      INTEGER REFERENCES trucks(id) ON DELETE SET NULL,
+  carrier_id    INTEGER REFERENCES carriers(id) ON DELETE SET NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses (expense_date DESC);
+CREATE INDEX IF NOT EXISTS idx_expenses_cat ON expenses (category);
+
+-- ===========================================================================
+-- Maintenance — service / repair records for trucks & trailers
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS maintenance_records (
+  id            SERIAL PRIMARY KEY,
+  truck_id      INTEGER REFERENCES trucks(id) ON DELETE SET NULL,
+  trailer_id    INTEGER REFERENCES trailers(id) ON DELETE SET NULL,
+  kind          TEXT NOT NULL DEFAULT 'service'
+                  CHECK (kind IN ('service','repair','inspection','tire','other')),
+  description   TEXT,
+  vendor        TEXT,
+  cost          NUMERIC(10,2),
+  odometer      INTEGER,
+  service_date  DATE NOT NULL DEFAULT CURRENT_DATE,
+  next_due_date DATE,
+  status        TEXT NOT NULL DEFAULT 'completed'
+                  CHECK (status IN ('scheduled','in_progress','completed')),
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_maint_truck ON maintenance_records (truck_id, service_date DESC);
+
 -- Sessions are held in signed cookies (cookie-session), so there is no session
 -- table on Postgres — nothing to define here.

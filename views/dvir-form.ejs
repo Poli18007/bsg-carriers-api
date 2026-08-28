@@ -1,0 +1,92 @@
+<% var title=(isNew?'New inspection':'DVIR report')+' — BSG Carriers'; var active='dvir'; var r=report||{};
+   function when(x){ return x? new Date(x).toLocaleString() : ''; }
+   var defectSet = {}; (defects||[]).forEach(function(d){ defectSet[d]=true; }); %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<% if (isNew) { %>
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/dvir">← DVIR</a>
+  <h1 style="margin-left:4px">New inspection</h1>
+</div>
+
+<form method="post" action="/admin/dvir" class="panel" style="max-width:820px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="field"><label>Type</label><select name="kind"><option value="pre_trip">Pre-Trip</option><option value="post_trip">Post-Trip</option></select></div>
+    <div class="field"><label>Truck</label><select name="truck_id"><option value="">— none —</option><% trucks.forEach(function(tk){ %><option value="<%= tk.id %>"><%= tk.number %></option><% }) %></select></div>
+    <div class="field"><label>Trailer</label><select name="trailer_id"><option value="">— none —</option><% trailers.forEach(function(tr){ %><option value="<%= tr.id %>"><%= tr.number %></option><% }) %></select></div>
+    <div class="field"><label>Driver</label><select name="driver_id"><option value="">— none —</option><% drivers.forEach(function(d){ %><option value="<%= d.id %>"><%= d.name %> — <%= d.company_name %></option><% }) %></select></div>
+    <div class="field"><label>Trip</label><select name="trip_id"><option value="">— none —</option><% trips.forEach(function(t){ %><option value="<%= t.id %>">TRIP-<%= t.seq %><%= t.name?(' · '+t.name):'' %></option><% }) %></select></div>
+    <div class="field"><label>Odometer</label><input name="odometer" inputmode="numeric"></div>
+  </div>
+  <div class="field"><label>Location</label><input name="location" placeholder="Yard / city where inspected"></div>
+
+  <h2 style="font-size:14px;margin:8px 0 8px">Inspection — tick any component with a <span style="color:var(--danger)">defect</span></h2>
+  <div class="checkgrid">
+    <% checklist.forEach(function(c){ %>
+      <label class="chkbox"><input type="checkbox" name="defect" value="<%= c %>"> <%= c %></label>
+    <% }) %>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">
+    <div class="field"><label>Condition</label><select name="satisfactory"><option value="1">Satisfactory to operate</option><option value="0">NOT safe to operate</option></select></div>
+    <div class="field"><label>Status</label><select name="status"><option value="submitted">Submitted</option><option value="draft">Draft</option><option value="reviewed">Reviewed</option><option value="cleared">Cleared</option></select></div>
+  </div>
+  <div class="field"><label>Remarks</label><input name="remarks" placeholder="Notes on defects or repairs needed"></div>
+  <button class="btn gold" type="submit">Save inspection</button>
+</form>
+
+<% } else { %>
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/dvir">← DVIR</a>
+  <h1 style="margin-left:4px"><%= r.kind==='pre_trip'?'Pre-Trip':'Post-Trip' %> inspection</h1>
+  <span class="tag <%= r.status==='cleared'?'approved':(r.status==='submitted'?'dispatched':(r.status==='draft'?'booked':'read')) %>"><%= r.status %></span>
+</div>
+
+<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:18px;align-items:start">
+  <div>
+    <div class="panel">
+      <table>
+        <tr><td class="muted" style="width:150px">Truck</td><td><strong><%= r.truck_number || '—' %></strong></td></tr>
+        <% if(r.trailer_number){ %><tr><td class="muted">Trailer</td><td><%= r.trailer_number %></td></tr><% } %>
+        <tr><td class="muted">Driver</td><td><%= r.driver_name || '—' %></td></tr>
+        <% if(r.trip_seq){ %><tr><td class="muted">Trip</td><td><a href="/admin/trips/<%= r.trip_id %>">TRIP-<%= r.trip_seq %></a></td></tr><% } %>
+        <tr><td class="muted">Inspected</td><td><%= when(r.inspected_at) %></td></tr>
+        <% if(r.odometer){ %><tr><td class="muted">Odometer</td><td><%= Number(r.odometer).toLocaleString() %></td></tr><% } %>
+        <% if(r.location){ %><tr><td class="muted">Location</td><td><%= r.location %></td></tr><% } %>
+        <tr><td class="muted">Condition</td><td><% if(r.satisfactory){ %><span style="color:var(--gold);font-weight:600">Satisfactory to operate</span><% } else { %><span style="color:var(--danger);font-weight:700">NOT safe to operate</span><% } %></td></tr>
+      </table>
+    </div>
+
+    <h2 style="font-size:14px;margin:20px 0 8px">Defects <% if(defects.length){ %><span style="color:var(--danger)">(<%= defects.length %>)</span><% } else { %><span class="muted">— none reported</span><% } %></h2>
+    <% if(defects.length){ %>
+      <div class="panel" style="padding:14px 18px">
+        <% defects.forEach(function(d){ %><div style="display:flex;gap:9px;align-items:center;padding:5px 0"><span style="color:var(--danger)">⚠</span> <%= d %></div><% }) %>
+      </div>
+    <% } %>
+    <% if(r.remarks){ %><div class="panel" style="padding:14px 18px;margin-top:12px"><div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">Remarks</div><%= r.remarks %></div><% } %>
+  </div>
+
+  <div>
+    <div class="panel" style="padding:16px">
+      <h2 style="font-size:14px;margin:0 0 12px">Status</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <% statuses.forEach(function(s){ %>
+          <form method="post" action="/admin/dvir/<%= r.id %>/status" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm <%= r.status===s?'gold':'' %>" name="status" value="<%= s %>" <%= r.status===s?'disabled':'' %>><%= s %></button></form>
+        <% }) %>
+      </div>
+    </div>
+    <form method="post" action="/admin/dvir/<%= r.id %>/delete" style="margin-top:16px" onsubmit="return confirm('Delete this inspection report?')">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm danger" type="submit">Delete report</button>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<style>
+  .checkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px}
+  .chkbox{display:flex;align-items:center;gap:9px;font-size:13.5px;cursor:pointer;padding:4px}
+  .chkbox input{width:16px;height:16px;accent-color:var(--gold)}
+</style>
+
+<%- include('partials/foot') %>

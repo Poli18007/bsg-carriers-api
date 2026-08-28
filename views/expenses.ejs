@@ -1,0 +1,46 @@
+<% var title='Expenses — BSG Carriers'; var active='expenses';
+   function money(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'—'; } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Expenses</h1>
+  <a class="btn gold spacer" href="/admin/expenses/new">+ Add expense</a>
+</div>
+<p class="sub">Fuel, tolls, repairs and other costs — tie each to a load, trip or truck.</p>
+
+<div class="kpis">
+  <div class="kpi accent"><div class="n"><%= money(counts.total) %></div><div class="l">Total</div></div>
+  <div class="kpi"><div class="n"><%= money(counts.this_month) %></div><div class="l">This month</div></div>
+</div>
+
+<% if (byCat.length) { %>
+<div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:16px">
+  <% byCat.forEach(function(c){ %><div class="panel" style="padding:11px 14px;flex:0 0 auto"><div class="muted" style="font-size:11px;text-transform:uppercase;letter-spacing:.4px"><%= c.name %></div><div style="font-weight:800;color:var(--heading)"><%= money(c.total) %></div></div><% }) %>
+</div>
+<% } %>
+
+<form method="get" action="/admin/expenses" class="filters">
+  <select name="category" onchange="this.form.submit()"><option value="">All categories</option><% categories.forEach(function(c){ %><option value="<%= c %>" <%= filter.category===c?'selected':'' %>><%= c %></option><% }) %></select>
+  <a class="btn" href="/admin/expenses">Clear</a>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Linked to</th><th>Amount</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="5" class="muted" style="padding:28px;text-align:center">No expenses yet. <a href="/admin/expenses/new">Add one</a>.</td></tr><% } %>
+      <% rows.forEach(function(e){ %>
+        <tr class="row" onclick="location.href='/admin/expenses/<%= e.id %>'">
+          <td class="muted" style="white-space:nowrap"><%= d(e.expense_date) %></td>
+          <td><span class="tag read"><%= e.category %></span></td>
+          <td><%= e.description || '—' %></td>
+          <td class="muted"><% if(e.load_ref){ %>Load <%= e.load_ref %><% } else if(e.trip_seq){ %>TRIP-<%= e.trip_seq %><% } else if(e.truck_number){ %>Truck <%= e.truck_number %><% } else if(e.carrier_name){ %><%= e.carrier_name %><% } else { %>—<% } %></td>
+          <td><%= money(e.amount) %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

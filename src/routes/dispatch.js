@@ -266,17 +266,43 @@ router.post('/loads', async (req, res) => {
   res.redirect('/admin/loads/' + rows[0].id);
 });
 
+// Load detail — a read-first view (status stepper, info cards, route, docs,
+// accessorials, timeline). Editing lives at /loads/:id/edit.
 router.get('/loads/:id', async (req, res) => {
-  const [rows] = await pool.query('SELECT * FROM loads WHERE id = ? LIMIT 1', [req.params.id]);
+  const [rows] = await pool.query(
+    `SELECT l.*, bc.name AS col_name, bc.color AS col_color, bc.category AS col_category,
+            b.name AS broker_name, c.company_name AS carrier_name, cu.name AS customer_name,
+            su.name AS dispatcher_name, d.name AS driver_name, d.phone AS driver_phone,
+            tk.number AS truck_number, tr.number AS trailer_number, tp.seq AS trip_seq,
+            lb.name AS label_name, lb.color AS label_color
+       FROM loads l
+       LEFT JOIN board_columns bc ON bc.id=l.column_id
+       LEFT JOIN brokers b ON b.id=l.broker_id LEFT JOIN carriers c ON c.id=l.carrier_id
+       LEFT JOIN customers cu ON cu.id=l.customer_id LEFT JOIN staff_users su ON su.id=l.dispatcher_id
+       LEFT JOIN drivers d ON d.id=l.driver_id LEFT JOIN trucks tk ON tk.id=l.truck_id
+       LEFT JOIN trailers tr ON tr.id=l.trailer_id LEFT JOIN trips tp ON tp.id=l.trip_id
+       LEFT JOIN labels lb ON lb.id=l.label_id
+      WHERE l.id = ? LIMIT 1`, [req.params.id]);
   const load = rows[0];
   if (!load) return res.status(404).send('Not found');
-  const fd = await formData();
+  const board = await getBoard('loads');
+  const columns = await getColumns(board.id);
   const [docs] = await pool.query('SELECT id, doc_type, filename, size_bytes, uploaded_at FROM load_documents WHERE load_id=? ORDER BY uploaded_at DESC', [load.id]);
   const [accessorials] = await pool.query('SELECT * FROM load_accessorials WHERE load_id=? ORDER BY id', [load.id]);
   const [events] = await pool.query('SELECT * FROM load_events WHERE load_id=? ORDER BY created_at DESC LIMIT 100', [load.id]);
   const [[owedRow]] = await pool.query('SELECT COALESCE(SUM(amount),0) AS acc FROM load_accessorials WHERE load_id=?', [load.id]);
   const owed = (Number(load.rate) || 0) + (Number(owedRow.acc) || 0);
-  res.render('load-form', { user: req.session.user, load, ...fd, statuses: LOAD_STATUSES, csrfToken: req.csrfToken(), isNew: false, docs, accessorials, events, owed });
+  const [[inv]] = await pool.query('SELECT i.id, i.seq FROM invoice_lines il JOIN invoices i ON i.id=il.invoice_id WHERE il.load_id=? LIMIT 1', [load.id]);
+  res.render('load-detail', { user: req.session.user, load, columns, docs, accessorials, events, owed, invoice: inv || null, csrfToken: req.csrfToken() });
+});
+
+// Edit form for an existing load.
+router.get('/loads/:id/edit', async (req, res) => {
+  const [rows] = await pool.query('SELECT * FROM loads WHERE id = ? LIMIT 1', [req.params.id]);
+  const load = rows[0];
+  if (!load) return res.status(404).send('Not found');
+  const fd = await formData();
+  res.render('load-form', { user: req.session.user, load, ...fd, statuses: LOAD_STATUSES, csrfToken: req.csrfToken(), isNew: false });
 });
 
 router.post('/loads/:id', async (req, res) => {

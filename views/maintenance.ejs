@@ -1,0 +1,44 @@
+<% var title='Maintenance — BSG Carriers'; var active='maintenance';
+   function money(n){ return n==null?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'—'; } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Maintenance</h1>
+  <a class="btn gold spacer" href="/admin/maintenance/new">+ New record</a>
+</div>
+<p class="sub">Service, repairs and inspections for your trucks and trailers.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="n"><%= counts.open %></div><div class="l">Open jobs</div></div>
+  <div class="kpi <%= counts.due_soon?'accent':'' %>"><div class="n"><%= counts.due_soon %></div><div class="l">Due within 14 days</div></div>
+  <div class="kpi"><div class="n"><%= money(counts.total_cost) %></div><div class="l">Total spend</div></div>
+</div>
+
+<form method="get" action="/admin/maintenance" class="filters">
+  <select name="status" onchange="this.form.submit()"><option value="">All statuses</option><% ['scheduled','in_progress','completed'].forEach(function(s){ %><option value="<%= s %>" <%= filter.status===s?'selected':'' %>><%= s.replace('_',' ') %></option><% }) %></select>
+  <a class="btn" href="/admin/maintenance">Clear</a>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Date</th><th>Unit</th><th>Type</th><th>Description</th><th>Vendor</th><th>Cost</th><th>Next due</th><th>Status</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="8" class="muted" style="padding:28px;text-align:center">No records yet. <a href="/admin/maintenance/new">Add one</a>.</td></tr><% } %>
+      <% rows.forEach(function(m){ %>
+        <tr class="row" onclick="location.href='/admin/maintenance/<%= m.id %>'">
+          <td class="muted" style="white-space:nowrap"><%= d(m.service_date) %></td>
+          <td><strong><%= m.truck_number || m.trailer_number || '—' %></strong></td>
+          <td><span class="tag read"><%= m.kind %></span></td>
+          <td><%= m.description || '—' %></td>
+          <td class="muted"><%= m.vendor || '—' %></td>
+          <td><%= money(m.cost) %></td>
+          <td class="muted"><%= d(m.next_due_date) %></td>
+          <td><span class="tag <%= m.status==='completed'?'approved':(m.status==='in_progress'?'dispatched':'booked') %>"><%= m.status.replace('_',' ') %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

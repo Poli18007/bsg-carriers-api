@@ -4,20 +4,11 @@
    function when(x){ return x? new Date(x).toLocaleString() : ''; } %>
 <%- include('partials/head', { title: title, active: active }) %>
 
-<div style="display:flex;align-items:center;gap:12px">
-  <a class="btn sm" href="/admin/loads">← Board</a>
-  <% if (!isNew) { %><span class="tag <%= l.status %>"><%= l.status.replace('_',' ') %></span><% } %>
+<div class="page-head">
+  <a class="btn sm ghost" href="<%= isNew ? '/admin/loads' : '/admin/loads/' + l.id %>">← Back</a>
+  <h1 style="margin-left:4px"><%= isNew ? 'Book a load' : ('Edit ' + (l.ref || ('#' + l.id))) %></h1>
 </div>
-<h1 style="margin-top:10px"><%= isNew ? 'Book a load' : (l.ref || ('Load #' + l.id)) %></h1>
 <% if (typeof error !== 'undefined' && error) { %><div class="error"><%= error %></div><% } %>
-
-<% if (!isNew) { %>
-<form method="post" action="/admin/loads/<%= l.id %>/column" class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px">
-  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  <span class="muted" style="margin-right:4px">Move to:</span>
-  <% columns.forEach(function(col){ %><button class="btn sm" name="column_id" value="<%= col.id %>" <%= String(l.column_id)===String(col.id)?'disabled':'' %>><%= col.name %></button><% }) %>
-</form>
-<% } %>
 
 <form method="post" action="<%= isNew ? '/admin/loads' : '/admin/loads/' + l.id %>" class="panel" style="max-width:900px">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -80,66 +71,5 @@
   <div class="field"><label>Notes</label><input name="notes" value="<%= l.notes||'' %>"></div>
   <button class="btn gold" type="submit"><%= isNew ? 'Book load' : 'Save changes' %></button>
 </form>
-
-<% if (!isNew) { %>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px;max-width:900px">
-  <!-- Documents -->
-  <div class="panel">
-    <h2 style="font-size:15px;margin-top:0">Documents</h2>
-    <% docs.forEach(function(d){ %>
-      <div class="doc" style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
-        <div><a href="/admin/loads/<%= l.id %>/documents/<%= d.id %>" target="_blank"><%= d.filename %></a>
-          <div class="muted" style="font-size:12px"><%= d.doc_type.replace('_',' ') %> · <%= Math.round(d.size_bytes/1024) %> KB</div></div>
-        <form method="post" action="/admin/loads/<%= l.id %>/documents/<%= d.id %>/delete" style="margin:0 0 0 auto"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit">✕</button></form>
-      </div>
-    <% }) %>
-    <form method="post" action="/admin/loads/<%= l.id %>/documents?_csrf=<%= csrfToken %>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
-      <select name="doc_type"><option value="rate_con">Rate con</option><option value="bol">BOL</option><option value="pod">POD</option><option value="other">Other</option></select>
-      <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png" required>
-      <button class="btn sm gold" type="submit">Upload</button>
-    </form>
-    <p class="muted" style="font-size:12px;margin-bottom:0">Carriers can download the rate con from their portal.</p>
-  </div>
-
-  <!-- Accessorials + carrier pay -->
-  <div class="panel">
-    <h2 style="font-size:15px;margin-top:0">Accessorials & carrier pay</h2>
-    <table style="width:100%"><% accessorials.forEach(function(a){ %>
-      <tr><td class="muted" style="padding:5px 0"><%= a.kind %><% if(a.notes){ %> · <%= a.notes %><% } %></td>
-        <td style="text-align:right;padding:5px 0"><%= money(a.amount) %></td>
-        <td style="text-align:right;width:30px"><form method="post" action="/admin/loads/<%= l.id %>/accessorials/<%= a.id %>/delete" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit">✕</button></form></td></tr>
-    <% }) %></table>
-    <div style="display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:8px;margin-top:6px">
-      <span class="muted">Linehaul</span><span><%= money(l.rate) %></span></div>
-    <div style="display:flex;justify-content:space-between;font-weight:700;color:var(--gold)">
-      <span>Carrier is owed</span><span><%= money(owed) %></span></div>
-    <form method="post" action="/admin/loads/<%= l.id %>/accessorials" style="display:flex;gap:8px;align-items:center;margin-top:12px;flex-wrap:wrap">
-      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-      <select name="kind"><option value="detention">Detention</option><option value="layover">Layover</option><option value="tonu">TONU</option><option value="lumper">Lumper</option><option value="fuel">Fuel</option><option value="other">Other</option></select>
-      <input name="amount" placeholder="$" style="width:90px">
-      <input name="notes" placeholder="note" style="flex:1;min-width:100px">
-      <button class="btn sm gold" type="submit">Add</button>
-    </form>
-  </div>
-</div>
-
-<!-- Timeline -->
-<div class="panel" style="margin-top:18px;max-width:900px">
-  <h2 style="font-size:15px;margin-top:0">Timeline & check calls</h2>
-  <form method="post" action="/admin/loads/<%= l.id %>/events" style="display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <select name="kind"><option value="check_call">Check call</option><option value="note">Note</option></select>
-    <input name="body" placeholder="e.g. Driver at pickup 08:10, loaded" style="flex:1;min-width:200px" required>
-    <button class="btn sm gold" type="submit">Add</button>
-  </form>
-  <% if(!events.length){ %><p class="muted" style="margin:0">No activity yet.</p><% } %>
-  <% events.forEach(function(e){ %>
-    <div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid var(--line)">
-      <span class="tag <%= e.kind==='status'?'dispatched':(e.kind==='check_call'?'booked':'read') %>" style="height:fit-content"><%= e.kind.replace('_',' ') %></span>
-      <div><div><%= e.body %></div><div class="muted" style="font-size:12px"><%= when(e.created_at) %><% if(e.staff_email){ %> · <%= e.staff_email %><% } %></div></div>
-    </div>
-  <% }) %>
-</div>
-<% } %>
 
 <%- include('partials/foot') %>

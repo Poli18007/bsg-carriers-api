@@ -1,0 +1,25 @@
+<% var title='Your profile — BSG Carriers'; var active='profile'; var c=carrier; %>
+<%- include('head', { title: title, active: active }) %>
+
+<h1>Your profile</h1>
+<p class="sub">Keep your operation details current for your dispatcher.</p>
+<% if (notice) { %><div class="notice"><%= notice %></div><% } %>
+
+<form method="post" action="/portal/profile" class="panel" style="max-width:640px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="field"><label>Email</label><input value="<%= c.email %>" disabled></div>
+  <div class="grid">
+    <div class="field"><label>Company name</label><input name="company_name" required value="<%= c.company_name||'' %>"></div>
+    <div class="field"><label>Contact name</label><input name="contact_name" value="<%= c.contact_name||'' %>"></div>
+    <div class="field"><label>Phone</label><input name="phone" value="<%= c.phone||'' %>"></div>
+    <div class="field"><label>MC number</label><input name="mc_number" value="<%= c.mc_number||'' %>"></div>
+    <div class="field"><label>DOT number</label><input name="dot_number" value="<%= c.dot_number||'' %>"></div>
+    <div class="field"><label>Equipment</label><input name="equipment" value="<%= c.equipment||'' %>"></div>
+    <div class="field"><label>Number of trucks</label><input name="num_trucks" value="<%= c.num_trucks||'' %>"></div>
+    <div class="field"><label>Current location</label><input name="current_location" value="<%= c.current_location||'' %>"></div>
+  </div>
+  <div class="field"><label>Preferred lanes</label><input name="preferred_lanes" value="<%= c.preferred_lanes||'' %>"></div>
+  <button class="btn gold" type="submit">Save profile</button>
+</form>
+
+<%- include('foot') %>

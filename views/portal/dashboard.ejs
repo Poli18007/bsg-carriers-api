@@ -1,0 +1,57 @@
+<% var title='Your onboarding — BSG Carriers'; var active='home'; %>
+<%- include('head', { title: title, active: active }) %>
+
+<h1>Welcome, <%= carrier.company_name %></h1>
+<p class="sub">Your onboarding status and documents.</p>
+
+<% if (notice) { %><div class="notice"><%= notice %></div><% } %>
+<% if (error) { %><div class="error"><%= error %></div><% } %>
+
+<div class="panel" style="display:flex;align-items:center;gap:16px;margin-bottom:6px">
+  <div>
+    <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px">Onboarding status</div>
+    <div style="margin-top:6px"><span class="status <%= carrier.status %>"><%= carrier.status.replace('_',' ') %></span></div>
+  </div>
+  <div style="margin-left:auto;max-width:420px;color:var(--muted);font-size:13px">
+    <% var msg={pending:'We have your details. Upload your documents below and a dispatcher will review them.',
+                under_review:'Your file is with our team — we will be in touch shortly.',
+                needs_info:'We need something more from you. Check your email or call your dispatcher.',
+                approved:'You are approved. Welcome aboard — your dispatcher will be in contact.',
+                rejected:'This application was not approved. Contact us if you think this is a mistake.'}; %>
+    <%= msg[carrier.status] || '' %>
+  </div>
+</div>
+
+<h2>Documents</h2>
+<div class="panel">
+  <p class="muted" style="margin-top:0">Upload your insurance certificate, operating authority and W-9. PDF, JPG or PNG, up to 4 MB each.</p>
+  <% docTypes.forEach(function(dt){ %>
+    <form class="upload-row" method="post" action="/portal/documents?_csrf=<%= csrfToken %>" enctype="multipart/form-data">
+      <input type="hidden" name="doc_type" value="<%= dt.key %>">
+      <span class="lbl"><%= dt.label %></span>
+      <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png" required>
+      <button class="btn sm gold" type="submit">Upload</button>
+    </form>
+  <% }) %>
+</div>
+
+<% if (docs.length) { %>
+  <h2>Uploaded files</h2>
+  <div class="panel">
+    <% docs.forEach(function(d){ %>
+      <div class="doc">
+        <div>
+          <div class="name"><a href="/portal/documents/<%= d.id %>" target="_blank"><%= d.filename %></a></div>
+          <div class="meta"><%= (docTypes.find(function(t){return t.key===d.doc_type})||{}).label || d.doc_type %> · <%= Math.round(d.size_bytes/1024) %> KB · <%= new Date(d.uploaded_at).toLocaleDateString() %></div>
+        </div>
+        <span class="review status <%= d.review==='accepted'?'approved':(d.review==='rejected'?'needs_info':'under_review') %>"><%= d.review %></span>
+        <form method="post" action="/portal/documents/<%= d.id %>/delete" onsubmit="return confirm('Remove this document?')" style="margin:0">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="btn sm" type="submit">Remove</button>
+        </form>
+      </div>
+    <% }) %>
+  </div>
+<% } %>
+
+<%- include('foot') %>

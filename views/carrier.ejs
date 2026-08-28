@@ -1,0 +1,60 @@
+<% var title='Carrier — ' + carrier.company_name; var active='carriers'; var c=carrier; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+  <a class="btn sm" href="/admin/carriers">← All carriers</a>
+  <span class="tag <%= c.status %>"><%= c.status.replace('_',' ') %></span>
+</div>
+<h1><%= c.company_name %></h1>
+<p class="sub">Registered <%= new Date(c.created_at).toLocaleString() %> · <%= c.email %></p>
+
+<div class="panel" style="margin-bottom:18px">
+  <dl class="dl">
+    <dt>Contact</dt><dd><%= c.contact_name || '—' %></dd>
+    <dt>Phone</dt><dd><% if (c.phone) { %><a href="tel:<%= c.phone.replace(/[^0-9+]/g,'') %>"><%= c.phone %></a><% } else { %>—<% } %></dd>
+    <dt>Email</dt><dd><a href="mailto:<%= c.email %>"><%= c.email %></a></dd>
+    <dt>MC number</dt><dd><%= c.mc_number || '—' %></dd>
+    <dt>DOT number</dt><dd><%= c.dot_number || '—' %></dd>
+    <dt>Equipment</dt><dd><%= c.equipment || '—' %></dd>
+    <dt>Trucks</dt><dd><%= c.num_trucks || '—' %></dd>
+    <dt>Preferred lanes</dt><dd><%= c.preferred_lanes || '—' %></dd>
+    <dt>Location</dt><dd><%= c.current_location || '—' %></dd>
+  </dl>
+</div>
+
+<h2 style="font-size:16px">Documents</h2>
+<div class="panel" style="margin-bottom:18px">
+  <% if (!docs.length) { %><p class="muted" style="margin:0">No documents uploaded yet.</p><% } %>
+  <% docs.forEach(function(d){ %>
+    <div class="doc" style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)">
+      <div>
+        <div><a href="/admin/carriers/<%= c.id %>/documents/<%= d.id %>" target="_blank"><%= d.filename %></a></div>
+        <div class="muted" style="font-size:12px"><%= d.doc_type %> · <%= Math.round(d.size_bytes/1024) %> KB · <%= new Date(d.uploaded_at).toLocaleDateString() %></div>
+      </div>
+      <span class="tag <%= d.review %>" style="margin-left:auto"><%= d.review %></span>
+      <form method="post" action="/admin/carriers/<%= c.id %>/documents/<%= d.id %>/review" style="margin:0;display:flex;gap:6px">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn sm" name="review" value="accepted" <%= d.review==='accepted'?'disabled':'' %>>Accept</button>
+        <button class="btn sm" name="review" value="rejected" <%= d.review==='rejected'?'disabled':'' %>>Reject</button>
+      </form>
+    </div>
+  <% }) %>
+</div>
+
+<h2 style="font-size:16px">Onboarding status</h2>
+<form method="post" action="/admin/carriers/<%= c.id %>/status" class="panel" style="max-width:620px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="field">
+    <label>Status (emails the carrier when changed)</label>
+    <select name="status">
+      <% statuses.forEach(function(s){ %><option value="<%= s %>" <%= c.status===s?'selected':'' %>><%= s.replace('_',' ') %></option><% }) %>
+    </select>
+  </div>
+  <div class="field">
+    <label>Staff notes (included in the carrier email)</label>
+    <input name="staff_notes" value="<%= c.staff_notes || '' %>" placeholder="e.g. COI expires next month — please send an updated copy.">
+  </div>
+  <button class="btn gold" type="submit">Update &amp; notify carrier</button>
+</form>
+
+<%- include('partials/foot') %>

@@ -25,6 +25,7 @@ const { ping } = require('./src/db');
 const { initDatabase } = require('./src/lib/init');
 const leadsRouter = require('./src/routes/leads');
 const adminRouter = require('./src/routes/admin');
+const portalRouter = require('./src/routes/portal');
 
 const app = express();
 const PROD = process.env.NODE_ENV === 'production';
@@ -92,13 +93,16 @@ function csrf(req, res, next) {
   res.locals.csrfToken = req.session.csrf;
   res.locals.user = req.session.user || null;
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
-    const token = (req.body && req.body._csrf) || req.get('x-csrf-token');
+    // Body for urlencoded forms, query for multipart uploads (whose body isn't
+    // parsed until multer runs inside the route, after this check), or a header.
+    const token = (req.body && req.body._csrf) || req.query._csrf || req.get('x-csrf-token');
     if (token !== req.session.csrf) return res.status(403).send('Invalid form token — reload and try again.');
   }
   next();
 }
 
 app.use('/admin', sessionMw, csrf, adminRouter);
+app.use('/portal', sessionMw, csrf, portalRouter);
 
 // --- Health + root ----------------------------------------------------------
 app.get('/health', async (req, res) => {

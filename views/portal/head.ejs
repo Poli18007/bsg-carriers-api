@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title><%= typeof title !== 'undefined' ? title : 'BSG Carriers — Carrier Portal' %></title>
+<style>
+  :root{--black:#0b0b0c;--panel:#15161a;--line:#26272e;--gold:#DCB555;--gold-600:#c39f43;
+    --text:#e9e9ec;--muted:#9a9ba3;--bg:#0e0f12;--danger:#e05555;--ok:#4caf7d;--info:#7fb0e0;--warn:#e0b060;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  a{color:var(--gold)}
+  .stripe{height:4px;background:linear-gradient(90deg,var(--gold-600),var(--gold))}
+  header.top{display:flex;align-items:center;gap:24px;padding:14px 22px;background:var(--black);border-bottom:1px solid var(--line)}
+  header.top .brand{font-weight:800;letter-spacing:.5px}
+  header.top .brand b{color:var(--gold)}
+  header.top nav{display:flex;gap:18px;margin-left:8px}
+  header.top nav a{color:var(--muted);text-decoration:none;font-weight:600;text-transform:uppercase;font-size:12px;letter-spacing:.4px}
+  header.top nav a.active,header.top nav a:hover{color:var(--text)}
+  header.top .who{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13px}
+  header.top .who form{margin:0}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);
+       padding:9px 15px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600;text-decoration:none}
+  .btn:hover{border-color:var(--gold)}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:#1a1400}
+  .btn.gold:hover{background:var(--gold-600)}
+  .btn.sm{padding:6px 11px;font-size:12px}
+  main{max-width:920px;margin:0 auto;padding:28px 22px 60px}
+  h1{font-size:24px;margin:0 0 4px}
+  h2{font-size:16px;margin:26px 0 12px}
+  .sub{color:var(--muted);margin:0 0 22px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:5px}
+  .field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:8px;font:inherit}
+  .status{display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .status.pending{background:rgba(224,176,96,.16);color:var(--warn)}
+  .status.under_review{background:rgba(127,176,224,.16);color:var(--info)}
+  .status.needs_info{background:rgba(224,85,85,.16);color:var(--danger)}
+  .status.approved{background:rgba(76,175,125,.16);color:var(--ok)}
+  .status.rejected{background:#23242b;color:var(--muted)}
+  .doc{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+  .doc:last-child{border-bottom:0}
+  .doc .name{font-weight:600}
+  .doc .meta{color:var(--muted);font-size:12px}
+  .doc .review{margin-left:auto}
+  .notice{background:rgba(76,175,125,.12);border:1px solid var(--ok);color:#bfe6d2;padding:10px 14px;border-radius:8px;margin-bottom:16px}
+  .error{background:rgba(224,85,85,.12);border:1px solid var(--danger);color:#f0bcbc;padding:10px 14px;border-radius:8px;margin-bottom:16px}
+  .login-wrap{max-width:420px;margin:7vh auto 0}
+  .muted{color:var(--muted)}
+  .upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}
+  .upload-row .lbl{min-width:230px;font-weight:600}
+  input[type=file]{color:var(--muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<% if (typeof carrier !== 'undefined' && carrier) { %>
+<header class="top">
+  <span class="brand">BSG<b>·</b>CARRIERS <span class="muted" style="font-weight:500">Carrier Portal</span></span>
+  <nav>
+    <a href="/portal" class="<%= (typeof active!=='undefined'&&active==='home')?'active':'' %>">Dashboard</a>
+    <a href="/portal/profile" class="<%= (typeof active!=='undefined'&&active==='profile')?'active':'' %>">My Profile</a>
+  </nav>
+  <div class="who">
+    <span><%= carrier.company_name %></span>
+    <form method="post" action="/portal/logout"><input type="hidden" name="_csrf" value="<%= typeof csrfToken!=='undefined'?csrfToken:'' %>"><button class="btn sm" type="submit">Sign out</button></form>
+  </div>
+</header>
+<% } %>
+<main>

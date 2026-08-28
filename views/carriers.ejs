@@ -1,0 +1,44 @@
+<% var title='Carriers — BSG Carriers Admin'; var active='carriers'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<h1>Carriers</h1>
+<p class="sub">Carrier accounts and onboarding from the portal.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="n"><%= counts.total %></div><div class="l">Total</div></div>
+  <div class="kpi"><div class="n"><%= counts.pending %></div><div class="l">Pending</div></div>
+  <div class="kpi"><div class="n"><%= counts.approved %></div><div class="l">Approved</div></div>
+</div>
+
+<form method="get" action="/admin/carriers" class="filters">
+  <input type="search" name="q" value="<%= filter.q %>" placeholder="Search company, email, MC, contact…">
+  <select name="status">
+    <option value="">Any status</option>
+    <% ['pending','under_review','needs_info','approved','rejected'].forEach(function(s){ %>
+      <option value="<%= s %>" <%= filter.status===s?'selected':'' %>><%= s.replace('_',' ') %></option>
+    <% }) %>
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn" href="/admin/carriers">Clear</a>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Registered</th><th>Company</th><th>Contact</th><th>MC</th><th>Docs</th><th>Status</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="6" class="muted" style="padding:28px;text-align:center">No carriers yet.</td></tr><% } %>
+      <% rows.forEach(function(c){ %>
+        <tr class="row" onclick="location.href='/admin/carriers/<%= c.id %>'">
+          <td class="muted" style="white-space:nowrap"><%= new Date(c.created_at).toLocaleDateString() %></td>
+          <td><strong><%= c.company_name %></strong></td>
+          <td class="muted"><%= c.contact_name || '—' %><br><%= c.email %></td>
+          <td class="muted"><%= c.mc_number || '—' %></td>
+          <td><%= c.doc_count %></td>
+          <td><span class="tag <%= c.status %>"><%= c.status.replace('_',' ') %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

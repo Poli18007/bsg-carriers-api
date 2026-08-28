@@ -7,6 +7,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { pool } = require('../db');
 const { verifyLogin, requireLogin, requireRole, sessionUser, hashPassword, findByEmail } = require('../lib/auth');
+const { carrierEmail } = require('../lib/notify');
 
 const router = express.Router();
 
@@ -151,6 +152,85 @@ router.post('/users/:id/toggle', requireRole('admin'), async (req, res) => {
   if (Number(req.params.id) === req.session.user.id) return res.redirect('/admin/users');
   await pool.query('UPDATE staff_users SET active = NOT active WHERE id = ?', [req.params.id]);
   res.redirect('/admin/users');
+});
+
+// --- Carriers (Phase 2 portal) ----------------------------------------------
+const CARRIER_STATUSES = ['pending', 'under_review', 'needs_info', 'approved', 'rejected'];
+
+router.get('/carriers', async (req, res) => {
+  const status = CARRIER_STATUSES.includes(req.query.status) ? req.query.status : '';
+  const q = (req.query.q || '').toString().trim().slice(0, 100);
+  const clauses = [];
+  const params = [];
+  if (status) { clauses.push('c.status = ?'); params.push(status); }
+  if (q) {
+    clauses.push('(c.company_name LIKE ? OR c.email LIKE ? OR c.mc_number LIKE ? OR c.contact_name LIKE ?)');
+    const like = '%' + q + '%';
+    params.push(like, like, like, like);
+  }
+  const where = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
+  const [rows] = await pool.query(
+    `SELECT c.id, c.company_name, c.contact_name, c.email, c.mc_number, c.status, c.created_at,
+            (SELECT COUNT(*) FROM carrier_documents d WHERE d.carrier_id = c.id)::int AS doc_count
+       FROM carriers c ${where} ORDER BY c.created_at DESC LIMIT 200`, params
+  );
+  const [[counts]] = await pool.query(
+    `SELECT COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE status='pending')::int AS pending,
+            COUNT(*) FILTER (WHERE status='approved')::int AS approved FROM carriers`
+  );
+  res.render('carriers', { user: req.session.user, rows, counts, filter: { status, q } });
+});
+
+router.get('/carriers/:id', async (req, res) => {
+  const [rows] = await pool.query('SELECT * FROM carriers WHERE id = ? LIMIT 1', [req.params.id]);
+  const carrier = rows[0];
+  if (!carrier) return res.status(404).send('Not found');
+  const [docs] = await pool.query(
+    'SELECT id, doc_type, filename, mime_type, size_bytes, review, uploaded_at FROM carrier_documents WHERE carrier_id = ? ORDER BY uploaded_at DESC',
+    [carrier.id]
+  );
+  res.render('carrier', { user: req.session.user, carrier, docs, statuses: CARRIER_STATUSES, csrfToken: req.csrfToken() });
+});
+
+// Staff download of any carrier document.
+router.get('/carriers/:id/documents/:docId', async (req, res) => {
+  const [rows] = await pool.query(
+    'SELECT filename, mime_type, content FROM carrier_documents WHERE id = ? AND carrier_id = ? LIMIT 1',
+    [req.params.docId, req.params.id]
+  );
+  const doc = rows[0];
+  if (!doc) return res.status(404).send('Not found');
+  res.setHeader('Content-Type', doc.mime_type);
+  res.setHeader('Content-Disposition', `inline; filename="${doc.filename.replace(/"/g, '')}"`);
+  res.send(doc.content);
+});
+
+router.post('/carriers/:id/documents/:docId/review', async (req, res) => {
+  const review = ['pending', 'accepted', 'rejected'].includes(req.body.review) ? req.body.review : null;
+  if (review) await pool.query('UPDATE carrier_documents SET review = ? WHERE id = ? AND carrier_id = ?', [review, req.params.docId, req.params.id]);
+  res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
+});
+
+router.post('/carriers/:id/status', async (req, res) => {
+  const status = CARRIER_STATUSES.includes(req.body.status) ? req.body.status : null;
+  const notes = (req.body.staff_notes || '').toString().slice(0, 4000);
+  if (!status) return res.status(400).send('Bad status');
+  const [rows] = await pool.query(
+    'UPDATE carriers SET status = ?, staff_notes = ? WHERE id = ? RETURNING email, company_name', [status, notes, req.params.id]
+  );
+  // Tell the carrier their status moved (best-effort).
+  const c = rows[0];
+  if (c) {
+    const label = status.replace('_', ' ');
+    carrierEmail(c.email, `Your BSG Carriers onboarding — ${label}`, [
+      `Hi ${c.company_name},`,
+      `Your onboarding status is now: ${label}.`,
+      notes ? `Note from our team: ${notes}` : 'Sign in to your carrier portal for details.',
+      'Portal: ' + (process.env.PORTAL_URL || 'https://bsg-carriers-api.vercel.app/portal'),
+    ]);
+  }
+  res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
 });
 
 // --- helpers ----------------------------------------------------------------

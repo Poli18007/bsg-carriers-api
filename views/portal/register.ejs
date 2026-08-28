@@ -1,0 +1,26 @@
+<% var title='Create a carrier account — BSG Carriers'; var carrier=null; var v=values||{}; %>
+<%- include('head', { title: title, carrier: carrier }) %>
+<div style="max-width:640px;margin:5vh auto 0">
+  <h1>Create your carrier account</h1>
+  <p class="sub">Tell us about your operation. You can upload your documents right after.</p>
+  <% if (error) { %><div class="error"><%= error %></div><% } %>
+  <form method="post" action="/portal/register" class="panel">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="grid">
+      <div class="field"><label>Email *</label><input name="email" type="email" required value="<%= v.email||'' %>"></div>
+      <div class="field"><label>Password * (8+ characters)</label><input name="password" type="password" minlength="8" required></div>
+      <div class="field"><label>Company name *</label><input name="company_name" required value="<%= v.company_name||'' %>"></div>
+      <div class="field"><label>Contact name</label><input name="contact_name" value="<%= v.contact_name||'' %>"></div>
+      <div class="field"><label>Phone</label><input name="phone" value="<%= v.phone||'' %>"></div>
+      <div class="field"><label>MC number</label><input name="mc_number" value="<%= v.mc_number||'' %>"></div>
+      <div class="field"><label>DOT number</label><input name="dot_number" value="<%= v.dot_number||'' %>"></div>
+      <div class="field"><label>Equipment</label><input name="equipment" placeholder="Dry van, reefer, flatbed…" value="<%= v.equipment||'' %>"></div>
+      <div class="field"><label>Number of trucks</label><input name="num_trucks" value="<%= v.num_trucks||'' %>"></div>
+      <div class="field"><label>Current location</label><input name="current_location" value="<%= v.current_location||'' %>"></div>
+    </div>
+    <div class="field"><label>Preferred lanes</label><input name="preferred_lanes" placeholder="Midwest to Southeast" value="<%= v.preferred_lanes||'' %>"></div>
+    <button class="btn gold" type="submit">Create account</button>
+  </form>
+  <p class="muted" style="margin-top:16px">Already registered? <a href="/portal/login">Sign in →</a></p>
+</div>
+<%- include('foot') %>

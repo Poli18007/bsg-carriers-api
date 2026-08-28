@@ -121,4 +121,60 @@ function notify(sub) {
   Promise.allSettled([sendEmail(sub), sendSlack(sub)]).catch(() => {});
 }
 
-module.exports = { notify, sendEmail, sendSlack };
+// --- Carrier-portal notifications ------------------------------------------
+// Generic staff alert (email to MAIL_TO + Slack), used for portal events like a
+// new carrier registration or a document upload. `fields` is [[label, value]].
+async function staffAlert(title, fields) {
+  const rowsHtml = (fields || []).map(([k, v]) =>
+    `<tr><td style="padding:4px 12px 4px 0;color:#666;white-space:nowrap;vertical-align:top">${esc(k)}</td>` +
+    `<td style="padding:4px 0">${esc(v)}</td></tr>`).join('');
+  const t = mailer();
+  if (t) {
+    try {
+      await t.sendMail({
+        from: process.env.MAIL_FROM || process.env.SMTP_USER,
+        to: process.env.MAIL_TO,
+        subject: title,
+        text: title + '\n\n' + (fields || []).map(([k, v]) => `${k}: ${v}`).join('\n'),
+        html: `<div style="font-family:system-ui,Arial,sans-serif;font-size:14px;color:#111">` +
+          `<h2 style="margin:0 0 12px">${esc(title)}</h2><table style="border-collapse:collapse">${rowsHtml}</table>` +
+          (process.env.ADMIN_URL ? `<p style="margin-top:16px"><a href="${esc(process.env.ADMIN_URL)}/carriers">Open carriers →</a></p>` : '') +
+          `</div>`,
+      });
+    } catch (_) { /* best-effort */ }
+  }
+  const url = process.env.SLACK_WEBHOOK_URL;
+  if (url) {
+    try {
+      await fetch(url, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: title,
+          blocks: [
+            { type: 'header', text: { type: 'plain_text', text: title } },
+            { type: 'section', text: { type: 'mrkdwn', text: (fields || []).map(([k, v]) => `*${k}:* ${v}`).join('\n') || '_no detail_' } },
+          ],
+        }),
+      });
+    } catch (_) { /* best-effort */ }
+  }
+}
+
+// Email a carrier directly — used when staff change their onboarding status.
+async function carrierEmail(to, subject, paragraphs) {
+  const t = mailer();
+  if (!t || !to) return;
+  const html = `<div style="font-family:system-ui,Arial,sans-serif;font-size:14px;color:#111;line-height:1.5">` +
+    (paragraphs || []).map((p) => `<p>${esc(p)}</p>`).join('') +
+    `<p style="color:#888;margin-top:20px">BSG Carriers — U.S. Truck Dispatching</p></div>`;
+  try {
+    await t.sendMail({
+      from: process.env.MAIL_FROM || process.env.SMTP_USER,
+      to, subject,
+      text: (paragraphs || []).join('\n\n') + '\n\nBSG Carriers',
+      html,
+    });
+  } catch (_) { /* best-effort */ }
+}
+
+module.exports = { notify, sendEmail, sendSlack, staffAlert, carrierEmail };

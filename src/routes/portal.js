@@ -117,7 +117,28 @@ router.get('/', async (req, res) => {
     'SELECT id, doc_type, filename, size_bytes, review, uploaded_at FROM carrier_documents WHERE carrier_id = ? ORDER BY uploaded_at DESC',
     [carrier.id]
   );
-  res.render('portal/dashboard', { carrier, docs, docTypes: DOC_TYPES, csrfToken: req.csrfToken(), notice: req.query.notice || null, error: req.query.error || null });
+  // Guided-onboarding state: the current step is derived from the data, so the
+  // wizard is always correct without tracking a step number server-side.
+  const byType = {};
+  docs.forEach((d) => { if (!byType[d.doc_type]) byType[d.doc_type] = d; });
+  const checklist = DOC_TYPES.map((t) => ({ key: t.key, label: t.label, doc: byType[t.key] || null }));
+  const docsDone = checklist.every((c) => c.doc);
+  const profileDone = !!(carrier.mc_number && carrier.dot_number && carrier.equipment);
+  const approved = carrier.status === 'approved';
+  const inReview = carrier.status === 'under_review' || carrier.status === 'needs_info';
+  const steps = [
+    { n: 1, label: 'Account', state: 'done' },
+    { n: 2, label: 'Company details', state: profileDone ? 'done' : 'current' },
+    { n: 3, label: 'Documents', state: docsDone ? 'done' : (profileDone ? 'current' : 'todo') },
+    { n: 4, label: 'Review', state: approved ? 'done' : (docsDone ? 'current' : 'todo') },
+  ];
+  const doneCount = steps.filter((s) => s.state === 'done').length;
+  res.render('portal/dashboard', {
+    carrier, docs, docTypes: DOC_TYPES, checklist, steps,
+    progress: Math.round((doneCount / steps.length) * 100),
+    profileDone, docsDone, approved, inReview,
+    csrfToken: req.csrfToken(), notice: req.query.notice || null, error: req.query.error || null,
+  });
 });
 
 // --- Profile ----------------------------------------------------------------
@@ -162,6 +183,15 @@ router.post('/documents', (req, res) => {
         ['Company', req.session.carrier.company_name], ['Email', req.session.carrier.email],
         ['Document', DOC_TYPES.find((t) => t.key === docType)?.label || docType], ['File', f.originalname],
       ]);
+      // When all three required documents are in, advance a still-pending carrier
+      // to 'under review' automatically — that's the "submitted for review" step.
+      const [have] = await pool.query(
+        "SELECT COUNT(DISTINCT doc_type)::int AS n FROM carrier_documents WHERE carrier_id=? AND doc_type IN ('coi','authority','w9')",
+        [req.session.carrier.id]);
+      if (have[0] && have[0].n >= 3) {
+        const [adv] = await pool.query("UPDATE carriers SET status='under_review' WHERE id=? AND status='pending' RETURNING id", [req.session.carrier.id]);
+        if (adv.length) staffAlert('Carrier ready for review', [['Company', req.session.carrier.company_name], ['Email', req.session.carrier.email]]);
+      }
       res.redirect('/portal?notice=' + encodeURIComponent('Document uploaded.'));
     } catch (e) {
       console.error('[portal] upload error:', e.message);

@@ -1,0 +1,100 @@
+<% var title='Invoice BSG-'+inv.seq+' — BSG Carriers'; var active='invoices';
+   function money(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+   function dv(x){ if(!x) return ''; var dt=new Date(x); return isNaN(dt)?'':dt.toISOString().slice(0,10); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'—'; } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/invoices">← Invoices</a>
+  <h1 style="margin-left:4px">Invoice BSG-<%= inv.seq %></h1>
+  <span class="tag <%= inv.status==='paid'?'paid':(inv.status==='sent'?'dispatched':(inv.status==='void'?'cancelled':'read')) %>"><%= inv.status %></span>
+  <div class="spacer" style="display:flex;gap:8px">
+    <a class="btn sm" href="/admin/invoices/<%= inv.id %>/print" target="_blank">Print / PDF</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start">
+  <div>
+    <div class="panel">
+      <div style="padding:16px 16px 4px">
+        <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px">Bill to</div>
+        <div style="font-size:16px;font-weight:700;margin-top:4px"><%= inv.carrier_name || inv.bill_to || '—' %></div>
+        <% if(inv.carrier_contact||inv.carrier_email){ %><div class="muted" style="font-size:13px"><%= [inv.carrier_contact, inv.carrier_email].filter(Boolean).join(' · ') %></div><% } %>
+      </div>
+      <table>
+        <thead><tr><th>Description</th><th style="text-align:right">Amount</th><th style="width:34px"></th></tr></thead>
+        <tbody>
+          <% if(!lines.length){ %><tr><td colspan="3" class="muted" style="padding:20px;text-align:center">No line items yet — add one below.</td></tr><% } %>
+          <% lines.forEach(function(li){ %>
+            <tr>
+              <td><%= li.description %><% if(li.load_id){ %> · <a href="/admin/loads/<%= li.load_id %>">load</a><% } %></td>
+              <td style="text-align:right;white-space:nowrap"><%= money(li.amount) %></td>
+              <td><form method="post" action="/admin/invoices/<%= inv.id %>/lines/<%= li.id %>/delete" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit" title="Remove">✕</button></form></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+      <div style="padding:14px 16px;border-top:1px solid var(--line)">
+        <div style="display:flex;justify-content:space-between"><span class="muted">Subtotal</span><span><%= money(t.total) %></span></div>
+        <div style="display:flex;justify-content:space-between"><span class="muted">Paid</span><span><%= money(t.paid) %></span></div>
+        <div style="display:flex;justify-content:space-between;font-weight:800;color:var(--gold);font-size:16px;margin-top:4px"><span>Balance due</span><span><%= money(t.balance) %></span></div>
+      </div>
+    </div>
+
+    <h2 style="font-size:14px;margin:20px 0 8px">Add a line</h2>
+    <form method="post" action="/admin/invoices/<%= inv.id %>/lines" class="panel" style="padding:14px;display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field" style="margin:0;flex:1;min-width:220px"><label>Description</label><input name="description" placeholder="Flat dispatch fee / adjustment" required></div>
+      <div class="field" style="margin:0;width:120px"><label>Amount</label><input name="amount" placeholder="0.00"></div>
+      <button class="btn gold" type="submit">Add</button>
+    </form>
+  </div>
+
+  <div>
+    <div class="panel" style="padding:16px">
+      <h2 style="font-size:14px;margin:0 0 12px">Invoice details</h2>
+      <form method="post" action="/admin/invoices/<%= inv.id %>">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="status" value="<%= inv.status %>">
+        <div class="field"><label>Issue date</label><input type="date" name="issue_date" value="<%= dv(inv.issue_date) %>"></div>
+        <div class="field"><label>Due date</label><input type="date" name="due_date" value="<%= dv(inv.due_date) %>"></div>
+        <div class="field"><label>Bill to (override)</label><input name="bill_to" value="<%= inv.bill_to||'' %>"></div>
+        <div class="field"><label>Notes</label><input name="notes" value="<%= inv.notes||'' %>"></div>
+        <button class="btn" type="submit">Save details</button>
+      </form>
+    </div>
+
+    <div class="panel" style="padding:16px;margin-top:16px">
+      <h2 style="font-size:14px;margin:0 0 12px">Status</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <% ['draft','sent','paid','void'].forEach(function(s){ %>
+          <form method="post" action="/admin/invoices/<%= inv.id %>/status" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm <%= inv.status===s?'gold':'' %>" name="status" value="<%= s %>" <%= inv.status===s?'disabled':'' %>><%= s %></button></form>
+        <% }) %>
+      </div>
+    </div>
+
+    <div class="panel" style="padding:16px;margin-top:16px">
+      <h2 style="font-size:14px;margin:0 0 12px">Payments</h2>
+      <% if(!payments.length){ %><p class="muted" style="margin:0 0 12px">None recorded.</p><% } %>
+      <% payments.forEach(function(p){ %>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--line-soft)">
+          <div><strong><%= money(p.amount) %></strong> <span class="muted" style="font-size:12px"><%= p.method||'' %> · <%= d(p.paid_at) %></span></div>
+          <form method="post" action="/admin/invoices/<%= inv.id %>/payments/<%= p.id %>/delete" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit">✕</button></form>
+        </div>
+      <% }) %>
+      <form method="post" action="/admin/invoices/<%= inv.id %>/payments" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap;margin-top:12px">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field" style="margin:0;width:100px"><label>Amount</label><input name="amount" placeholder="0.00"></div>
+        <div class="field" style="margin:0;width:110px"><label>Method</label><input name="method" placeholder="ACH / check"></div>
+        <button class="btn gold sm" type="submit">Record</button>
+      </form>
+    </div>
+
+    <form method="post" action="/admin/invoices/<%= inv.id %>/delete" style="margin-top:16px" onsubmit="return confirm('<%= inv.status==="draft" ? "Delete this draft?" : "Void this invoice?" %>')">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button class="btn sm danger" type="submit"><%= inv.status==='draft' ? 'Delete draft' : 'Void invoice' %></button>
+    </form>
+  </div>
+</div>
+
+<%- include('partials/foot') %>

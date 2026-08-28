@@ -1,0 +1,45 @@
+<% var title='Invoices — BSG Carriers'; var active='invoices';
+   function money(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'—'; } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Invoices</h1>
+  <a class="btn gold spacer" href="/admin/invoices/new">+ New invoice</a>
+</div>
+<p class="sub">Dispatch-fee invoices you issue to carriers.</p>
+
+<div class="kpis">
+  <div class="kpi accent"><div class="n"><%= money(counts.outstanding) %></div><div class="l">Outstanding</div></div>
+  <div class="kpi"><div class="n"><%= money(counts.collected) %></div><div class="l">Collected</div></div>
+  <div class="kpi"><div class="n"><%= counts.sent_count %></div><div class="l">Awaiting payment</div></div>
+</div>
+
+<form method="get" action="/admin/invoices" class="filters">
+  <select name="status" onchange="this.form.submit()">
+    <option value="">All statuses</option>
+    <% ['draft','sent','paid','void'].forEach(function(s){ %><option value="<%= s %>" <%= filter.status===s?'selected':'' %>><%= s %></option><% }) %>
+  </select>
+  <a class="btn" href="/admin/invoices">Clear</a>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Invoice</th><th>Carrier</th><th>Issued</th><th>Total</th><th>Balance</th><th>Status</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="6" class="muted" style="padding:28px;text-align:center">No invoices yet. <a href="/admin/invoices/new">Create one</a>.</td></tr><% } %>
+      <% rows.forEach(function(i){ %>
+        <tr class="row" onclick="location.href='/admin/invoices/<%= i.id %>'">
+          <td><strong>BSG-<%= i.seq %></strong></td>
+          <td class="muted"><%= i.carrier_name || i.bill_to || '—' %></td>
+          <td class="muted"><%= d(i.issue_date) %></td>
+          <td><%= money(i.total) %></td>
+          <td><% if(i.balance>0 && i.status!=='void'){ %><strong style="color:var(--gold)"><%= money(i.balance) %></strong><% } else { %><span class="muted"><%= money(i.balance) %></span><% } %></td>
+          <td><span class="tag <%= i.status==='paid'?'paid':(i.status==='sent'?'dispatched':(i.status==='void'?'cancelled':'read')) %>"><%= i.status %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

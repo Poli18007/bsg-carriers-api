@@ -64,7 +64,9 @@ router.get('/', async (req, res) => {
     `SELECT (SELECT COUNT(*) FROM trucks WHERE active AND in_service)::int AS trucks,
             (SELECT COUNT(*) FROM trailers WHERE active)::int AS trailers,
             (SELECT COUNT(*) FROM customers)::int AS customers,
-            (SELECT COUNT(*) FROM submissions WHERE status='new')::int AS new_leads`);
+            (SELECT COUNT(*) FROM submissions WHERE status='new')::int AS new_leads,
+            COALESCE((SELECT SUM(il.amount) FROM invoice_lines il JOIN invoices i ON i.id=il.invoice_id WHERE i.status IN ('draft','sent'))
+                   - (SELECT COALESCE(SUM(p.amount),0) FROM invoice_payments p JOIN invoices i2 ON i2.id=p.invoice_id WHERE i2.status IN ('draft','sent')),0) AS outstanding`);
   const [board] = await pool.query("SELECT id FROM boards WHERE kind='loads' LIMIT 1");
   const [columns] = await pool.query(
     `SELECT bc.id, bc.name, bc.color, (SELECT COUNT(*) FROM loads l WHERE l.column_id=bc.id)::int AS n
@@ -239,6 +241,15 @@ router.get('/carriers/:id/documents/:docId', async (req, res) => {
 router.post('/carriers/:id/documents/:docId/review', async (req, res) => {
   const review = ['pending', 'accepted', 'rejected'].includes(req.body.review) ? req.body.review : null;
   if (review) await pool.query('UPDATE carrier_documents SET review = ? WHERE id = ? AND carrier_id = ?', [review, req.params.docId, req.params.id]);
+  res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
+});
+
+// Set a carrier's default dispatch-fee percentage (used to pre-fill invoices).
+router.post('/carriers/:id/fee', async (req, res) => {
+  let pct = parseFloat(String(req.body.dispatch_fee_pct).replace(/[^0-9.]/g, ''));
+  if (!Number.isFinite(pct) || pct < 0) pct = 0;
+  if (pct > 100) pct = 100;
+  await pool.query('UPDATE carriers SET dispatch_fee_pct = ? WHERE id = ?', [pct, req.params.id]);
   res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
 });
 

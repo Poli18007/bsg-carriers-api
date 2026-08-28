@@ -331,5 +331,57 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS customer_id INTEGER REFERENCES custom
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS truck_id INTEGER REFERENCES trucks(id) ON DELETE SET NULL;
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS trailer_id INTEGER REFERENCES trailers(id) ON DELETE SET NULL;
 
+-- ===========================================================================
+-- Billing — dispatch-fee invoices (a dispatcher's revenue)
+-- ===========================================================================
+
+-- A default dispatch fee (% of linehaul) per carrier, so generating an invoice
+-- from their loads can pre-fill the fee. 0 = ask each time.
+ALTER TABLE carriers ADD COLUMN IF NOT EXISTS dispatch_fee_pct NUMERIC(5,2) NOT NULL DEFAULT 0;
+
+-- One invoice BSG issues to a carrier for dispatching services. The line items
+-- carry the money; status + payments track collection. `seq` gives a stable,
+-- human invoice number independent of the internal id.
+CREATE TABLE IF NOT EXISTS invoices (
+  id          SERIAL PRIMARY KEY,
+  seq         INTEGER NOT NULL,
+  carrier_id  INTEGER REFERENCES carriers(id) ON DELETE SET NULL,
+  bill_to     TEXT,
+  status      TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','sent','paid','void')),
+  issue_date  DATE NOT NULL DEFAULT CURRENT_DATE,
+  due_date    DATE,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_invoices_carrier ON invoices (carrier_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices (status);
+
+-- A line on an invoice. Usually one per load (dispatch fee = pct × linehaul),
+-- but a manual line (flat fee, adjustment) has no load_id.
+CREATE TABLE IF NOT EXISTS invoice_lines (
+  id           BIGSERIAL PRIMARY KEY,
+  invoice_id   INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+  load_id      BIGINT REFERENCES loads(id) ON DELETE SET NULL,
+  description  TEXT NOT NULL,
+  amount       NUMERIC(10,2) NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_invlines_invoice ON invoice_lines (invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invlines_load ON invoice_lines (load_id);
+
+-- Payments recorded against an invoice (supports partial payments). Balance =
+-- SUM(lines) − SUM(payments).
+CREATE TABLE IF NOT EXISTS invoice_payments (
+  id           BIGSERIAL PRIMARY KEY,
+  invoice_id   INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+  amount       NUMERIC(10,2) NOT NULL DEFAULT 0,
+  method       TEXT,
+  paid_at      DATE NOT NULL DEFAULT CURRENT_DATE,
+  notes        TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_invpay_invoice ON invoice_payments (invoice_id);
+
 -- Sessions are held in signed cookies (cookie-session), so there is no session
 -- table on Postgres — nothing to define here.

@@ -20,6 +20,7 @@
   <div class="kpi"><div class="n"><%= fleet.trucks %></div><div class="l">Trucks in service</div></div>
   <div class="kpi"><div class="n"><%= fleet.trailers %></div><div class="l">Trailers</div></div>
   <div class="kpi"><div class="n"><%= carrierCounts.total %></div><div class="l">Carriers<% if(carrierCounts.pending){ %> · <%= carrierCounts.pending %> pending<% } %></div></div>
+  <div class="kpi accent"><div class="n"><%= money(fleet.outstanding) %></div><div class="l">Outstanding invoices</div></div>
   <div class="kpi"><div class="n"><%= fleet.new_leads %></div><div class="l">New leads</div></div>
 </div>
 
@@ -71,10 +72,10 @@
       <% }) %>
     </div>
     <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <a class="btn sm" href="/admin/invoices/new">+ Invoice</a>
       <a class="btn sm" href="/admin/trucks/new">+ Truck</a>
       <a class="btn sm" href="/admin/trailers/new">+ Trailer</a>
       <a class="btn sm" href="/admin/customers/new">+ Customer</a>
-      <a class="btn sm" href="/admin/carriers">Carriers</a>
     </div>
   </div>
 </div>

@@ -4,6 +4,7 @@
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
   <a class="btn sm" href="/admin/carriers">← All carriers</a>
   <span class="tag <%= c.status %>"><%= c.status.replace('_',' ') %></span>
+  <a class="btn sm gold" style="margin-left:auto" href="/admin/invoices/new?carrier=<%= c.id %>">Create invoice</a>
 </div>
 <h1><%= c.company_name %></h1>
 <p class="sub">Registered <%= new Date(c.created_at).toLocaleString() %> · <%= c.email %></p>
@@ -21,6 +22,14 @@
     <dt>Location</dt><dd><%= c.current_location || '—' %></dd>
   </dl>
 </div>
+
+<h2 style="font-size:16px">Billing</h2>
+<form method="post" action="/admin/carriers/<%= c.id %>/fee" class="panel" style="margin-bottom:18px;padding:16px;display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="field" style="margin:0;width:160px"><label>Default dispatch fee %</label><input name="dispatch_fee_pct" value="<%= c.dispatch_fee_pct!=null?c.dispatch_fee_pct:0 %>"></div>
+  <button class="btn" type="submit">Save fee</button>
+  <a class="btn gold" style="margin-left:auto" href="/admin/invoices/new?carrier=<%= c.id %>">Invoice this carrier →</a>
+</form>
 
 <h2 style="font-size:16px">Documents</h2>
 <div class="panel" style="margin-bottom:18px">

@@ -17,6 +17,7 @@
     customer:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
     broker:'<path d="M3 21h18M5 21V8l7-5 7 5v13M9 21v-6h6v6"/>',
     inbox: '<path d="M4 4h16v16H4zM4 13h5l2 3h2l2-3h5"/>',
+    invoice:'<path d="M6 2h9l3 3v17l-2.5-1.5L13 22l-2.5-1.5L8 22l-2.5-1.5L3 22V2z"/><path d="M7 8h8M7 12h8M7 16h5"/>',
     staff: '<circle cx="9" cy="8" r="3"/><path d="M2 20c0-3 3-5 7-5s7 2 7 5"/><path d="M17 11a3 3 0 1 0-1-5.8"/><path d="M22 20c0-2.5-2-4.2-5-4.7"/>',
   };
   function ic(n){ return '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[n]||'')+'</svg>'; }
@@ -192,6 +193,9 @@
       <a class="sb-link <%= A==='carriers'?'active':'' %>" href="/admin/carriers"><%- ic('carrier') %> Carriers</a>
       <a class="sb-link <%= A==='customers'?'active':'' %>" href="/admin/customers"><%- ic('customer') %> Customers</a>
       <a class="sb-link <%= A==='brokers'?'active':'' %>" href="/admin/brokers"><%- ic('broker') %> Brokers</a>
+
+      <div class="sb-sec">Billing</div>
+      <a class="sb-link <%= A==='invoices'?'active':'' %>" href="/admin/invoices"><%- ic('invoice') %> Invoices</a>
 
       <div class="sb-sec">Inbox</div>
       <a class="sb-link <%= A==='leads'?'active':'' %>" href="/admin/leads"><%- ic('inbox') %> Leads</a>

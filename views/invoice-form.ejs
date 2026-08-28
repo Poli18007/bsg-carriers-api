@@ -1,0 +1,72 @@
+<% var title='New invoice — BSG Carriers'; var active='invoices';
+   function money(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/invoices">← Invoices</a>
+  <h1 style="margin-left:4px">New invoice</h1>
+</div>
+
+<% if (!carrier) { %>
+<p class="sub">Pick the carrier you're billing. You'll then choose which of their loads to charge a dispatch fee on.</p>
+<form method="get" action="/admin/invoices/new" class="panel" style="max-width:520px;padding:20px;display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+  <div class="field" style="margin:0;flex:1;min-width:220px"><label>Carrier</label>
+    <select name="carrier" required><option value="">— choose a carrier —</option>
+      <% carriers.forEach(function(c){ %><option value="<%= c.id %>"><%= c.company_name %></option><% }) %>
+    </select>
+  </div>
+  <button class="btn gold" type="submit">Continue</button>
+</form>
+
+<% } else { %>
+<p class="sub">Billing <strong><%= carrier.company_name %></strong>. Tick the loads to invoice — the fee below is applied to each load's linehaul.</p>
+<form method="post" action="/admin/invoices" class="panel" style="max-width:900px;padding:20px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <input type="hidden" name="carrier_id" value="<%= carrier.id %>">
+  <div style="display:grid;grid-template-columns:160px 1fr;gap:14px;align-items:end;margin-bottom:16px">
+    <div class="field" style="margin:0"><label>Dispatch fee %</label><input name="fee_pct" id="fee" value="<%= Number(carrier.dispatch_fee_pct)>0?carrier.dispatch_fee_pct:5 %>" oninput="recalc()"></div>
+    <div class="field" style="margin:0"><label>Due date (optional)</label><input name="due_date" type="date"></div>
+  </div>
+
+  <div class="panel" style="box-shadow:none">
+    <table>
+      <thead><tr><th style="width:34px"></th><th>Load</th><th>Customer / Lane</th><th>Linehaul</th><th>Fee</th></tr></thead>
+      <tbody>
+        <% if(!loads.length){ %><tr><td colspan="5" class="muted" style="padding:24px;text-align:center">No uninvoiced loads for this carrier.</td></tr><% } %>
+        <% loads.forEach(function(l){ %>
+          <tr>
+            <td><input type="checkbox" name="load_id" value="<%= l.id %>" class="lchk" data-rate="<%= Number(l.rate)||0 %>" checked onchange="recalc()"></td>
+            <td><strong><%= l.ref || ('#'+l.id) %></strong></td>
+            <td class="muted"><% if(l.customer){ %><%= l.customer %> · <% } %><%= l.origin||'—' %> → <%= l.destination||'—' %></td>
+            <td class="muted"><%= money(l.rate) %></td>
+            <td class="fee-cell muted">—</td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:14px;margin-top:14px">
+    <div style="font-size:15px">Invoice total: <strong id="total" style="color:var(--gold)">$0.00</strong></div>
+    <button class="btn gold" type="submit" style="margin-left:auto">Create invoice</button>
+  </div>
+  <div class="field" style="margin-top:14px"><label>Notes (optional)</label><input name="notes" placeholder="Terms, remittance details…"></div>
+</form>
+
+<script>
+  function money(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function recalc(){
+    var fee = parseFloat(document.getElementById('fee').value)||0, total=0;
+    document.querySelectorAll('.lchk').forEach(function(chk){
+      var cell = chk.closest('tr').querySelector('.fee-cell');
+      var amt = Math.round((parseFloat(chk.dataset.rate)||0)*fee)/100;
+      if(chk.checked){ cell.textContent=money(amt); cell.classList.remove('muted'); total+=amt; }
+      else { cell.textContent='—'; cell.classList.add('muted'); }
+    });
+    document.getElementById('total').textContent = money(total);
+  }
+  recalc();
+</script>
+<% } %>
+
+<%- include('partials/foot') %>

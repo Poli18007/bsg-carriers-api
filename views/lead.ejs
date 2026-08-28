@@ -1,0 +1,47 @@
+<% var title = 'Lead #' + sub.id + ' — BSG Carriers Admin'; var active = 'leads'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+  <a class="btn sm" href="/admin">← All leads</a>
+  <span class="tag <%= sub.type %>"><%= sub.type %></span>
+  <span class="tag <%= sub.status %>"><%= sub.status %></span>
+</div>
+<h1><%= sub.full_name || 'Submission' %> <span class="muted" style="font-weight:400">#<%= sub.id %></span></h1>
+<p class="sub">Received <%= new Date(sub.created_at).toLocaleString() %></p>
+
+<div class="panel" style="margin-bottom:18px">
+  <dl class="dl">
+    <% var keys = Object.keys(data || {}); %>
+    <% if (!keys.length) { %><dt>—</dt><dd class="muted">No fields.</dd><% } %>
+    <% keys.forEach(function(k){ %>
+      <dt><%= k %></dt>
+      <dd>
+        <% var v = String(data[k]); %>
+        <% if (k.toLowerCase().indexOf('email') >= 0 && v.indexOf('@') > 0) { %>
+          <a href="mailto:<%= v %>"><%= v %></a>
+        <% } else if (k.toLowerCase().indexOf('phone') >= 0) { %>
+          <a href="tel:<%= v.replace(/[^0-9+]/g,'') %>"><%= v %></a>
+        <% } else { %><%= v %><% } %>
+      </dd>
+    <% }) %>
+  </dl>
+</div>
+
+<div class="panel" style="padding:16px;margin-bottom:18px">
+  <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Meta</div>
+  <div class="muted" style="font-size:13px">
+    Source: <%= sub.source_page || '—' %><br>
+    IP: <%= sub.ip || '—' %><br>
+    Agent: <%= (sub.user_agent || '—') %>
+  </div>
+</div>
+
+<form method="post" action="/admin/leads/<%= sub.id %>/status" style="display:flex;gap:8px;align-items:center">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <span class="muted">Mark as:</span>
+  <button class="btn sm" name="status" value="new" <%= sub.status==='new'?'disabled':'' %>>New</button>
+  <button class="btn sm" name="status" value="read" <%= sub.status==='read'?'disabled':'' %>>Read</button>
+  <button class="btn sm" name="status" value="archived" <%= sub.status==='archived'?'disabled':'' %>>Archived</button>
+</form>
+
+<%- include('partials/foot') %>

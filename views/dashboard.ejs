@@ -1,0 +1,60 @@
+<% var title = 'Leads — BSG Carriers Admin'; var active = 'leads'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<h1>Leads</h1>
+<p class="sub">Every contact and carrier-onboarding submission from bsgcarriers.com.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="n"><%= total %></div><div class="l">Matching</div></div>
+  <div class="kpi"><div class="n"><%= counts.new_count || 0 %></div><div class="l">New</div></div>
+  <div class="kpi"><div class="n"><%= counts.onboarding_count || 0 %></div><div class="l">Onboarding</div></div>
+</div>
+
+<form method="get" action="/admin" class="filters">
+  <input type="search" name="q" value="<%= filter.q %>" placeholder="Search name, company, email, phone, message…">
+  <select name="type">
+    <option value="">All types</option>
+    <option value="contact" <%= filter.type==='contact'?'selected':'' %>>Contact</option>
+    <option value="onboarding" <%= filter.type==='onboarding'?'selected':'' %>>Onboarding</option>
+  </select>
+  <select name="status">
+    <option value="">Any status</option>
+    <option value="new" <%= filter.status==='new'?'selected':'' %>>New</option>
+    <option value="read" <%= filter.status==='read'?'selected':'' %>>Read</option>
+    <option value="archived" <%= filter.status==='archived'?'selected':'' %>>Archived</option>
+  </select>
+  <button class="btn" type="submit">Filter</button>
+  <a class="btn" href="/admin">Clear</a>
+  <a class="btn" style="margin-left:auto" href="/admin/leads.csv?type=<%= encodeURIComponent(filter.type) %>&status=<%= encodeURIComponent(filter.status) %>&q=<%= encodeURIComponent(filter.q) %>">Export CSV</a>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>When</th><th>Type</th><th>Name</th><th>Company</th><th>Contact</th><th>Status</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %>
+        <tr><td colspan="6" class="muted" style="padding:28px;text-align:center">No submissions match.</td></tr>
+      <% } %>
+      <% rows.forEach(function(r){ %>
+        <tr class="row" onclick="location.href='/admin/leads/<%= r.id %>'">
+          <td class="muted" style="white-space:nowrap"><%= new Date(r.created_at).toLocaleString() %></td>
+          <td><span class="tag <%= r.type %>"><%= r.type %></span></td>
+          <td><%= r.full_name || '—' %></td>
+          <td><%= r.company || '—' %></td>
+          <td class="muted"><%= r.email || r.phone || '—' %></td>
+          <td><span class="tag <%= r.status %>"><%= r.status %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<% var pages = Math.max(1, Math.ceil(total / pageSize)); %>
+<div class="pager">
+  <span>Page <%= page %> of <%= pages %></span>
+  <% function link(p){ var u = new URLSearchParams({q:filter.q,type:filter.type,status:filter.status,page:p}); return '/admin?'+u.toString(); } %>
+  <% if (page > 1) { %><a class="btn sm" href="<%= link(page-1) %>">← Prev</a><% } %>
+  <% if (page < pages) { %><a class="btn sm" href="<%= link(page+1) %>">Next →</a><% } %>
+</div>
+
+<%- include('partials/foot') %>

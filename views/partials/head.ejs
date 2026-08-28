@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title><%= typeof title !== 'undefined' ? title : 'BSG Carriers — Admin' %></title>
+<style>
+  :root{
+    --black:#0b0b0c; --panel:#15161a; --line:#26272e; --gold:#DCB555; --gold-600:#c39f43;
+    --text:#e9e9ec; --muted:#9a9ba3; --bg:#0e0f12; --danger:#e05555; --ok:#4caf7d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+  a{color:var(--gold)}
+  .stripe{height:4px;background:linear-gradient(90deg,var(--gold-600),var(--gold))}
+  header.top{display:flex;align-items:center;gap:24px;padding:14px 22px;background:var(--black);border-bottom:1px solid var(--line)}
+  header.top .brand{font-weight:800;letter-spacing:.5px}
+  header.top .brand b{color:var(--gold)}
+  header.top nav{display:flex;gap:18px;margin-left:8px}
+  header.top nav a{color:var(--muted);text-decoration:none;font-weight:600;text-transform:uppercase;font-size:12px;letter-spacing:.4px}
+  header.top nav a.active,header.top nav a:hover{color:var(--text)}
+  header.top .who{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--muted);font-size:13px}
+  header.top .who form{margin:0}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);
+       padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600;text-decoration:none}
+  .btn:hover{border-color:var(--gold)}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:#1a1400}
+  .btn.gold:hover{background:var(--gold-600)}
+  .btn.sm{padding:5px 10px;font-size:12px}
+  main{max-width:1120px;margin:0 auto;padding:24px 22px 60px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 20px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700}
+  tr:last-child td{border-bottom:0}
+  tr.row:hover td{background:#191a1f;cursor:pointer}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px}
+  .tag.new{background:rgba(220,181,85,.16);color:var(--gold)}
+  .tag.read{background:#23242b;color:var(--muted)}
+  .tag.archived{background:#1c1d22;color:#6b6c74}
+  .tag.contact{background:#1c2733;color:#7fb0e0}
+  .tag.onboarding{background:#1e2a20;color:#7fd0a0}
+  .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .filters input,.filters select{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:9px 12px;border-radius:8px;font:inherit}
+  .filters input[type=search]{min-width:240px}
+  .kpis{display:flex;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 16px;min-width:120px}
+  .kpi .n{font-size:22px;font-weight:800}
+  .kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  .pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:14px;color:var(--muted)}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:5px}
+  .field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:8px;font:inherit}
+  .dl{display:grid;grid-template-columns:200px 1fr;gap:0}
+  .dl dt{color:var(--muted);padding:9px 14px;border-bottom:1px solid var(--line)}
+  .dl dd{margin:0;padding:9px 14px;border-bottom:1px solid var(--line)}
+  .notice{background:rgba(76,175,125,.12);border:1px solid var(--ok);color:#bfe6d2;padding:10px 14px;border-radius:8px;margin-bottom:16px}
+  .error{background:rgba(224,85,85,.12);border:1px solid var(--danger);color:#f0bcbc;padding:10px 14px;border-radius:8px;margin-bottom:16px}
+  .login-wrap{max-width:380px;margin:8vh auto 0}
+  .muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="stripe"></div>
+<% if (typeof user !== 'undefined' && user) { %>
+<header class="top">
+  <span class="brand">BSG<b>·</b>CARRIERS</span>
+  <nav>
+    <a href="/admin" class="<%= (typeof active!=='undefined'&&active==='leads')?'active':'' %>">Leads</a>
+    <% if (user.role === 'admin') { %><a href="/admin/users" class="<%= (typeof active!=='undefined'&&active==='users')?'active':'' %>">Staff</a><% } %>
+  </nav>
+  <div class="who">
+    <span><%= user.name %> · <%= user.role %></span>
+    <form method="post" action="/admin/logout"><input type="hidden" name="_csrf" value="<%= typeof csrfToken!=='undefined'?csrfToken:'' %>"><button class="btn sm" type="submit">Sign out</button></form>
+  </div>
+</header>
+<% } %>
+<main>

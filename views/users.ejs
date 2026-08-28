@@ -1,0 +1,48 @@
+<% var title = 'Staff — BSG Carriers Admin'; var active = 'users'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<h1>Staff accounts</h1>
+<p class="sub">Individual logins for the admin dashboard. Admins can add and disable accounts.</p>
+
+<% if (notice) { %><div class="notice"><%= notice %></div><% } %>
+<% if (error) { %><div class="error"><%= error %></div><% } %>
+
+<div class="panel" style="margin-bottom:22px">
+  <table>
+    <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last login</th><th></th></tr></thead>
+    <tbody>
+      <% users.forEach(function(u){ %>
+        <tr>
+          <td><%= u.name %></td>
+          <td class="muted"><%= u.email %></td>
+          <td><span class="tag <%= u.role==='admin'?'onboarding':'read' %>"><%= u.role %></span></td>
+          <td><%= u.active ? 'Active' : 'Disabled' %></td>
+          <td class="muted"><%= u.last_login ? new Date(u.last_login).toLocaleString() : 'never' %></td>
+          <td style="text-align:right">
+            <% if (u.id !== user.id) { %>
+              <form method="post" action="/admin/users/<%= u.id %>/toggle" style="margin:0">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn sm" type="submit"><%= u.active ? 'Disable' : 'Enable' %></button>
+              </form>
+            <% } else { %><span class="muted">you</span><% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<h2 style="font-size:16px">Add a staff member</h2>
+<form method="post" action="/admin/users" class="panel" style="padding:18px;max-width:520px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="field"><label>Name</label><input name="name" required></div>
+  <div class="field"><label>Email</label><input name="email" type="email" required></div>
+  <div class="field"><label>Temporary password (10+ characters)</label><input name="password" type="text" minlength="10" required></div>
+  <div class="field">
+    <label>Role</label>
+    <select name="role"><option value="staff">Staff — view leads</option><option value="admin">Admin — also manage staff</option></select>
+  </div>
+  <button class="btn gold" type="submit">Add account</button>
+</form>
+
+<%- include('partials/foot') %>

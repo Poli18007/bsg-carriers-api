@@ -1,0 +1,21 @@
+<% var title = 'Sign in — BSG Carriers Admin'; var user = null; %>
+<%- include('partials/head', { title: title, user: user }) %>
+<div class="login-wrap">
+  <h1>BSG Carriers</h1>
+  <p class="sub">Dispatch admin — staff sign in</p>
+  <% if (error) { %><div class="error"><%= error %></div><% } %>
+  <form method="post" action="/admin/login" class="panel" style="padding:20px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field">
+      <label for="email">Email</label>
+      <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+    </div>
+    <button class="btn gold" type="submit" style="width:100%;justify-content:center">Sign in</button>
+  </form>
+  <p class="muted" style="margin-top:16px;font-size:12px">Access is limited to authorised BSG Carriers staff.</p>
+</div>
+<%- include('partials/foot') %>

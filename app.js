@@ -130,8 +130,9 @@ app.use('/portal', sessionMw, csrf, portalRouter);
 // --- Brand asset ------------------------------------------------------------
 // The compact BSG logo, embedded (src/lib/brand.js) and served here so the
 // portal and admin can show real branding without a static-file pipeline.
-const { LOGO_PNG_B64, FAVICON_PNG_B64 } = require('./src/lib/brand');
+const { LOGO_PNG_B64, LOGO_DARK_PNG_B64, FAVICON_PNG_B64 } = require('./src/lib/brand');
 const LOGO_BUF = Buffer.from(LOGO_PNG_B64, 'base64');
+const LOGO_DARK_BUF = Buffer.from(LOGO_DARK_PNG_B64, 'base64');
 const FAVICON_BUF = Buffer.from(FAVICON_PNG_B64, 'base64');
 const sendPng = (buf) => (req, res) => {
   res.setHeader('Content-Type', 'image/png');
@@ -139,6 +140,7 @@ const sendPng = (buf) => (req, res) => {
   res.send(buf);
 };
 app.get('/brand/logo.png', sendPng(LOGO_BUF));
+app.get('/brand/logo-dark.png', sendPng(LOGO_DARK_BUF));
 app.get('/brand/favicon.png', sendPng(FAVICON_BUF));
 // Browsers auto-request /favicon.ico; a PNG body is fine here.
 app.get('/favicon.ico', sendPng(FAVICON_BUF));

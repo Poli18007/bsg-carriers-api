@@ -1,0 +1,28 @@
+<% var title='Invoices — BSG Carriers'; var active='invoices';
+   function money(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'—'; } %>
+<%- include('head', { title: title, active: active }) %>
+
+<h1>Invoices</h1>
+<p class="sub">Dispatch-fee invoices BSG has issued to you. Open one to view or print it.</p>
+
+<div class="panel" style="padding:0">
+  <table style="width:100%;border-collapse:collapse">
+    <thead><tr style="text-align:left;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px">
+      <th style="padding:12px 16px">Invoice</th><th style="padding:12px 16px">Issued</th><th style="padding:12px 16px">Total</th><th style="padding:12px 16px">Balance</th><th style="padding:12px 16px">Status</th></tr></thead>
+    <tbody>
+      <% if(!rows.length){ %><tr><td colspan="5" class="muted" style="padding:28px;text-align:center">No invoices yet.</td></tr><% } %>
+      <% rows.forEach(function(i){ %>
+        <tr style="border-top:1px solid var(--line);cursor:pointer" onclick="location.href='/portal/invoices/<%= i.id %>'">
+          <td style="padding:13px 16px"><strong>BSG-<%= i.seq %></strong></td>
+          <td style="padding:13px 16px" class="muted"><%= d(i.issue_date) %></td>
+          <td style="padding:13px 16px"><%= money(i.total) %></td>
+          <td style="padding:13px 16px"><% if(i.balance>0){ %><strong style="color:var(--gold)"><%= money(i.balance) %></strong><% } else { %><span class="muted"><%= money(0) %></span><% } %></td>
+          <td style="padding:13px 16px"><span class="status <%= i.status %>"><%= i.status %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('foot') %>

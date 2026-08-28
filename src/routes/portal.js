@@ -255,4 +255,32 @@ router.get('/loads/:id/documents/:docId', async (req, res) => {
   res.send(rows[0].content);
 });
 
+// --- Invoices the owner-op has been issued -----------------------------------
+// Only invoices that have actually been issued (not drafts / voided) are shown.
+router.get('/invoices', async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT i.*,
+            (SELECT COALESCE(SUM(amount),0) FROM invoice_lines il WHERE il.invoice_id=i.id) AS total,
+            (SELECT COALESCE(SUM(amount),0) FROM invoice_payments p WHERE p.invoice_id=i.id) AS paid
+       FROM invoices i
+      WHERE i.carrier_id = ? AND i.status IN ('sent','paid') ORDER BY i.seq DESC LIMIT 200`,
+    [req.session.carrier.id]);
+  rows.forEach((r) => { r.total = Number(r.total) || 0; r.paid = Number(r.paid) || 0; r.balance = Math.round((r.total - r.paid) * 100) / 100; });
+  res.render('portal/invoices', { carrier: { ...req.session.carrier }, rows, csrfToken: req.csrfToken() });
+});
+
+router.get('/invoices/:id', async (req, res) => {
+  const [[inv]] = await pool.query(
+    `SELECT i.*, c.company_name AS carrier_name, c.email AS carrier_email, c.contact_name AS carrier_contact, c.mc_number
+       FROM invoices i LEFT JOIN carriers c ON c.id=i.carrier_id
+      WHERE i.id = ? AND i.carrier_id = ? AND i.status IN ('sent','paid') LIMIT 1`,
+    [req.params.id, req.session.carrier.id]);
+  if (!inv) return res.status(404).send('Not found');
+  const [lines] = await pool.query('SELECT * FROM invoice_lines WHERE invoice_id=? ORDER BY id', [inv.id]);
+  const [[tot]] = await pool.query('SELECT COALESCE(SUM(amount),0) AS total FROM invoice_lines WHERE invoice_id=?', [inv.id]);
+  const [[pd]] = await pool.query('SELECT COALESCE(SUM(amount),0) AS paid FROM invoice_payments WHERE invoice_id=?', [inv.id]);
+  const total = Number(tot.total) || 0, paid = Number(pd.paid) || 0;
+  res.render('invoice-print', { inv, lines, t: { total, paid, balance: Math.round((total - paid) * 100) / 100 } });
+});
+
 module.exports = router;

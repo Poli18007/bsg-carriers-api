@@ -9,9 +9,14 @@
   <h1 style="margin-left:4px">Invoice BSG-<%= inv.seq %></h1>
   <span class="tag <%= inv.status==='paid'?'paid':(inv.status==='sent'?'dispatched':(inv.status==='void'?'cancelled':'read')) %>"><%= inv.status %></span>
   <div class="spacer" style="display:flex;gap:8px">
+    <% if (inv.carrier_email) { %>
+      <form method="post" action="/admin/invoices/<%= inv.id %>/send" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm gold" type="submit">Send to owner-op</button></form>
+    <% } %>
     <a class="btn sm" href="/admin/invoices/<%= inv.id %>/print" target="_blank">Print / PDF</a>
   </div>
 </div>
+<% if (typeof msg !== 'undefined' && msg === 'sent') { %><div class="notice">Invoice emailed to <%= inv.carrier_name || 'the owner-op' %><% if(inv.carrier_email){ %> (<%= inv.carrier_email %>)<% } %> and marked sent. They can view it in their portal.</div><% } %>
+<% if (typeof msg !== 'undefined' && msg === 'nocarrier') { %><div class="error">This invoice has no owner-op with an email on file — set the carrier and make sure their account has an email.</div><% } %>
 
 <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px;align-items:start">
   <div>

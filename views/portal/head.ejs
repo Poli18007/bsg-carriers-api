@@ -72,11 +72,12 @@
 <header class="top">
   <a href="/portal" class="brand" style="display:flex;align-items:center;gap:11px;text-decoration:none">
     <img src="/brand/logo.png" alt="BSG Carriers" style="height:38px;width:auto">
-    <span class="muted" style="font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.14em;padding-left:11px;border-left:1px solid var(--line)">Carrier Portal</span>
+    <span class="muted" style="font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.14em;padding-left:11px;border-left:1px solid var(--line)">Owner-Op Portal</span>
   </a>
   <nav>
     <a href="/portal" class="<%= (typeof active!=='undefined'&&active==='home')?'active':'' %>">Dashboard</a>
     <a href="/portal/loads" class="<%= (typeof active!=='undefined'&&active==='loads')?'active':'' %>">My Loads</a>
+    <a href="/portal/invoices" class="<%= (typeof active!=='undefined'&&active==='invoices')?'active':'' %>">Invoices</a>
     <a href="/portal/profile" class="<%= (typeof active!=='undefined'&&active==='profile')?'active':'' %>">My Profile</a>
   </nav>
   <div class="who">

@@ -8,6 +8,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { requireLogin } = require('../lib/auth');
+const { carrierEmail } = require('../lib/notify');
 
 const router = express.Router();
 router.use(requireLogin);
@@ -103,7 +104,7 @@ async function renderDetail(req, res, invoiceId) {
   const [lines] = await pool.query('SELECT * FROM invoice_lines WHERE invoice_id=? ORDER BY id', [invoiceId]);
   const [payments] = await pool.query('SELECT * FROM invoice_payments WHERE invoice_id=? ORDER BY paid_at, id', [invoiceId]);
   const t = await totals(invoiceId);
-  res.render('invoice', { user: req.session.user, inv, lines, payments, t, csrfToken: req.csrfToken() });
+  res.render('invoice', { user: req.session.user, inv, lines, payments, t, csrfToken: req.csrfToken(), msg: req.query.msg || null });
 }
 router.get('/invoices/:id', (req, res) => renderDetail(req, res, req.params.id));
 
@@ -154,6 +155,24 @@ router.post('/invoices/:id/delete', async (req, res) => {
   if (inv && inv.status === 'draft') await pool.query('DELETE FROM invoices WHERE id=?', [req.params.id]);
   else await pool.query("UPDATE invoices SET status='void', updated_at=now() WHERE id=?", [req.params.id]);
   res.redirect('/admin/invoices');
+});
+
+// ---- Send the invoice to the owner-op (carrier) by email -------------------
+const fmt = (n) => '$' + Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+router.post('/invoices/:id/send', async (req, res) => {
+  const [[inv]] = await pool.query(
+    'SELECT i.seq, c.email, c.company_name FROM invoices i LEFT JOIN carriers c ON c.id=i.carrier_id WHERE i.id=? LIMIT 1', [req.params.id]);
+  if (!inv || !inv.email) return res.redirect('/admin/invoices/' + encodeURIComponent(req.params.id) + '?msg=nocarrier');
+  const t = await totals(req.params.id);
+  const portal = (process.env.PORTAL_URL || 'https://bsg-carriers-api.vercel.app/portal').replace(/\/$/, '');
+  carrierEmail(inv.email, `Invoice BSG-${inv.seq} from BSG Carriers`, [
+    `Hi ${inv.company_name},`,
+    `Your dispatch-fee invoice BSG-${inv.seq} is ready — total ${fmt(t.total)}, balance due ${fmt(t.balance)}.`,
+    `View or print it in your owner-op portal: ${portal}/invoices/${req.params.id}`,
+    'Thank you for partnering with BSG Carriers.',
+  ]);
+  await pool.query("UPDATE invoices SET status='sent', updated_at=now() WHERE id=? AND status<>'void'", [req.params.id]);
+  res.redirect('/admin/invoices/' + encodeURIComponent(req.params.id) + '?msg=sent');
 });
 
 // ---- Printable invoice (standalone page, no admin shell) -------------------

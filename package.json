@@ -6,27 +6,26 @@
   "type": "commonjs",
   "main": "app.js",
   "engines": {
-    "node": ">=18"
+    "node": "24.x"
   },
   "scripts": {
     "start": "node app.js",
     "dev": "node --watch app.js",
-    "create-admin": "node scripts/create-admin.mjs",
-    "init-db": "node scripts/init-db.mjs"
+    "migrate": "node scripts/migrate.mjs",
+    "create-admin": "node scripts/create-admin.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
+    "cookie-session": "^2.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
-    "express-mysql-session": "^3.0.3",
     "express-rate-limit": "^7.4.1",
-    "express-session": "^1.18.1",
     "helmet": "^8.0.0",
-    "mysql2": "^3.11.5",
     "nodemailer": "^9.0.6",
+    "pg": "^8.13.1",
     "zod": "^3.23.8"
   }
 }

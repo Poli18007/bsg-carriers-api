@@ -1,14 +1,16 @@
 'use strict';
 
-// BSG Carriers API — Passenger startup file.
+// BSG Carriers API — Express app.
 //
-// cPanel's Node.js selector runs this file and Phusion Passenger manages the
-// process; the app just listens on the port Passenger provides. Locally, it
-// listens on PORT from .env.
+// Runs two ways from this one file:
+//   * Vercel (serverless): this module is imported by api/index.js and the app
+//     is invoked per request. No app.listen(), and the DB is migrated once via
+//     scripts/migrate.mjs — never per request.
+//   * Local / a persistent host: `node app.js` connects, applies the schema and
+//     listens on PORT.
 
-// dotenv is only for local dev. In production every value comes from the cPanel
-// "Environment variables" UI, and no .env file is uploaded — so a missing file
-// here is expected and must not throw.
+// dotenv is only for local dev. On Vercel every value comes from the project's
+// Environment Variables, so a missing .env here is expected and must not throw.
 try { require('dotenv').config(); } catch (_) {}
 
 const crypto = require('crypto');
@@ -16,8 +18,7 @@ const express = require('express');
 const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const session = require('express-session');
-const MySQLStore = require('express-mysql-session')(session);
+const cookieSession = require('cookie-session');
 const path = require('path');
 
 const { ping } = require('./src/db');
@@ -27,13 +28,16 @@ const adminRouter = require('./src/routes/admin');
 
 const app = express();
 const PROD = process.env.NODE_ENV === 'production';
+const SERVERLESS = !!process.env.VERCEL;
 
-// Behind Apache/Passenger, so the real client IP and https are in forwarded
-// headers — required for secure cookies and per-IP rate limiting to work.
+// Behind a proxy (Vercel's edge), so the real client IP and the https flag are
+// in forwarded headers — needed for secure cookies and per-IP rate limiting.
 app.set('trust proxy', 1);
 
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
+// Two candidate view roots so it resolves whether the bundler roots the function
+// at the app file's dir (__dirname) or the project cwd — Express tries each.
+app.set('views', [path.join(__dirname, 'views'), path.join(process.cwd(), 'views')]);
 
 app.use(helmet({
   contentSecurityPolicy: false, // admin pages use small inline styles; not worth a nonce pipeline for an internal tool
@@ -64,30 +68,17 @@ app.use('/leads', cors({
 app.use(leadsRouter);
 
 // --- Sessions + admin -------------------------------------------------------
-const sessionStore = new MySQLStore({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
-  // The sessions table is created by our own retry-protected schema (init.js),
-  // not here — the library's one-shot creation is not resilient to a cold DB.
-  createDatabaseTable: false,
-  schema: { tableName: 'sessions' },
-});
-
-const sessionMw = session({
-  key: 'bsg.sid',
-  secret: process.env.SESSION_SECRET || 'dev-insecure-secret-change-me',
-  store: sessionStore,
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    httpOnly: true,
-    secure: PROD,          // https-only in production (Passenger terminates TLS at Apache)
-    sameSite: 'lax',
-    maxAge: 8 * 60 * 60 * 1000, // 8h working session
-  },
+// Cookie-based sessions (signed, no server-side store) — the right fit for
+// serverless, where there is no shared memory and a DB-backed store would mean
+// a round trip on every request. The admin session holds only {id,email,name,
+// role} + a CSRF token, far under the 4KB cookie limit.
+const sessionMw = cookieSession({
+  name: 'bsg.sid',
+  keys: [process.env.SESSION_SECRET || 'dev-insecure-secret-change-me'],
+  httpOnly: true,
+  secure: PROD,          // https-only in production
+  sameSite: 'lax',
+  maxAge: 8 * 60 * 60 * 1000, // 8h working session
 });
 
 // Lightweight session-based CSRF for the admin forms (csurf is deprecated).
@@ -164,6 +155,9 @@ async function start() {
   await bootDatabase();
   app.listen(PORT, () => console.log(`BSG Carriers API listening on ${PORT} (${PROD ? 'production' : 'development'})`));
 }
-start();
+
+// On Vercel the app is invoked per request (api/index.js) — never listen, and
+// never migrate per request. Anywhere else, boot + listen.
+if (!SERVERLESS) start();
 
 module.exports = app;

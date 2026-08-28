@@ -41,7 +41,8 @@ router.post('/login', loginLimiter, async (req, res) => {
 });
 
 router.post('/logout', requireLogin, (req, res) => {
-  req.session.destroy(() => res.redirect('/admin/login'));
+  req.session = null; // cookie-session: clearing the object drops the cookie
+  res.redirect('/admin/login');
 });
 
 // Everything below requires a signed-in staff member.
@@ -55,14 +56,15 @@ router.get('/', async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
 
   const { where, params } = buildFilter({ type, status, q });
-  const [[{ total }]] = await pool.query(`SELECT COUNT(*) AS total FROM submissions ${where}`, params);
+  const [[{ total }]] = await pool.query(`SELECT COUNT(*)::int AS total FROM submissions ${where}`, params);
   const [rows] = await pool.query(
     `SELECT id, type, status, full_name, company, email, phone, created_at
        FROM submissions ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     [...params, PAGE_SIZE, (page - 1) * PAGE_SIZE]
   );
   const [[counts]] = await pool.query(
-    `SELECT SUM(status='new') AS new_count, SUM(type='onboarding') AS onboarding_count FROM submissions`
+    `SELECT COUNT(*) FILTER (WHERE status='new')::int AS new_count,
+            COUNT(*) FILTER (WHERE type='onboarding')::int AS onboarding_count FROM submissions`
   );
 
   res.render('dashboard', {
@@ -147,7 +149,7 @@ router.post('/users', requireRole('admin'), async (req, res) => {
 router.post('/users/:id/toggle', requireRole('admin'), async (req, res) => {
   // Never let an admin disable themselves and get locked out.
   if (Number(req.params.id) === req.session.user.id) return res.redirect('/admin/users');
-  await pool.query('UPDATE staff_users SET active = 1 - active WHERE id = ?', [req.params.id]);
+  await pool.query('UPDATE staff_users SET active = NOT active WHERE id = ?', [req.params.id]);
   res.redirect('/admin/users');
 });
 

@@ -1,18 +1,13 @@
-// Seed (or reset) a staff account. Run once to create the first admin, since the
-// UI for adding staff itself requires being logged in as an admin.
+// Seed or reset a staff account (Postgres). Useful for a password reset outside
+// the env-driven seed.
 //
-//   node scripts/create-admin.mjs "Jane Doe" jane@bsgcarriers.com 'a-strong-password' admin
+//   DATABASE_URL=postgres://… node scripts/create-admin.mjs "Jane Doe" jane@bsgcarriers.com 'password' admin
 //
-// Re-running with an existing email UPDATES that account's name, password and
-// role — handy for a password reset from the shell.
-//
-// Reads DB creds from the environment (or a local .env). On cPanel, open the
-// app's Terminal / "Run JS script" with the env already loaded, or run it once
-// locally against the same DB.
+// Re-running with an existing email updates that account.
 
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
-import mysql from 'mysql2/promise';
+import pg from 'pg';
 
 const [, , name, email, password, roleArg] = process.argv;
 const role = roleArg === 'staff' ? 'staff' : 'admin';
@@ -26,23 +21,20 @@ if (password.length < 10) {
   process.exit(1);
 }
 
-const conn = await mysql.createConnection({
-  host: process.env.DB_HOST || 'localhost',
-  port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASS,
-  database: process.env.DB_NAME,
+const client = new pg.Client({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.PGSSL === 'disable' ? false : { rejectUnauthorized: false },
 });
+await client.connect();
 
 const hash = await bcrypt.hash(password, 12);
-const lc = email.trim().toLowerCase();
-
-await conn.query(
+await client.query(
   `INSERT INTO staff_users (email, name, password_hash, role, active)
-   VALUES (?,?,?,?,1)
-   ON DUPLICATE KEY UPDATE name=VALUES(name), password_hash=VALUES(password_hash), role=VALUES(role), active=1`,
-  [lc, name, hash, role]
+   VALUES ($1,$2,$3,$4,true)
+   ON CONFLICT (email) DO UPDATE
+     SET name = EXCLUDED.name, password_hash = EXCLUDED.password_hash, role = EXCLUDED.role, active = true`,
+  [email.trim().toLowerCase(), name, hash, role]
 );
 
-console.log(`✓ ${role} account ready: ${lc}`);
-await conn.end();
+console.log(`✓ ${role} account ready: ${email.trim().toLowerCase()}`);
+await client.end();

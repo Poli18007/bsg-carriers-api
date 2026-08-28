@@ -39,17 +39,18 @@ router.post('/leads', limiter, async (req, res) => {
   const c = result.columns;
 
   try {
-    const [ins] = await pool.query(
+    const [rows] = await pool.query(
       `INSERT INTO submissions
         (type, full_name, company, email, phone, mc_number, dot_number, equipment, message, data, source_page, ip, user_agent)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+       RETURNING id`,
       [
         result.type, c.full_name, c.company, c.email, c.phone, c.mc_number, c.dot_number,
         c.equipment, c.message, JSON.stringify(result.data), sourcePage, ip, ua,
       ]
     );
 
-    const sub = { id: ins.insertId, type: result.type, data: result.data, columns: c };
+    const sub = { id: rows[0].id, type: result.type, data: result.data, columns: c };
     notify(sub); // fire-and-forget; lead is already safely stored
 
     return res.json({ ok: true });

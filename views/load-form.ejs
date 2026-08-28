@@ -1,0 +1,49 @@
+<% var title=(isNew?'New load':'Load '+(load.ref||('#'+load.id)))+' — BSG Carriers'; var active='loads'; var l=load||{};
+   function dv(x){ if(!x) return ''; var d=new Date(x); return isNaN(d)?'':d.toISOString().slice(0,10); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div style="display:flex;align-items:center;gap:12px">
+  <a class="btn sm" href="/admin/loads">← Board</a>
+  <% if (!isNew) { %><span class="tag <%= l.status %>"><%= l.status.replace('_',' ') %></span><% } %>
+</div>
+<h1 style="margin-top:10px"><%= isNew ? 'Book a load' : (l.ref || ('Load #' + l.id)) %></h1>
+<% if (typeof error !== 'undefined' && error) { %><div class="error"><%= error %></div><% } %>
+
+<% if (!isNew) { %>
+<!-- Quick status advance -->
+<form method="post" action="/admin/loads/<%= l.id %>/status" class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <span class="muted" style="margin-right:4px">Set status:</span>
+  <% statuses.forEach(function(s){ %>
+    <button class="btn sm" name="status" value="<%= s %>" <%= l.status===s?'disabled':'' %>><%= s.replace('_',' ') %></button>
+  <% }) %>
+</form>
+<% } %>
+
+<form method="post" action="<%= isNew ? '/admin/loads' : '/admin/loads/' + l.id %>" class="panel" style="max-width:760px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="field"><label>Reference / load #</label><input name="ref" value="<%= l.ref || '' %>" placeholder="e.g. 100482"></div>
+    <div class="field"><label>Status</label>
+      <select name="status"><% statuses.forEach(function(s){ %><option value="<%= s %>" <%= (l.status||'booked')===s?'selected':'' %>><%= s.replace('_',' ') %></option><% }) %></select>
+    </div>
+    <div class="field"><label>Broker</label>
+      <select name="broker_id"><option value="">— none —</option><% brokers.forEach(function(b){ %><option value="<%= b.id %>" <%= String(l.broker_id)===String(b.id)?'selected':'' %>><%= b.name %></option><% }) %></select>
+    </div>
+    <div class="field"><label>Assigned carrier</label>
+      <select name="carrier_id"><option value="">— unassigned —</option><% carriers.forEach(function(c){ %><option value="<%= c.id %>" <%= String(l.carrier_id)===String(c.id)?'selected':'' %>><%= c.company_name %></option><% }) %></select>
+    </div>
+    <div class="field"><label>Origin</label><input name="origin" value="<%= l.origin || '' %>" placeholder="Joliet, IL"></div>
+    <div class="field"><label>Destination</label><input name="destination" value="<%= l.destination || '' %>" placeholder="Dallas, TX"></div>
+    <div class="field"><label>Pickup date</label><input name="pickup_date" type="date" value="<%= dv(l.pickup_date) %>"></div>
+    <div class="field"><label>Delivery date</label><input name="delivery_date" type="date" value="<%= dv(l.delivery_date) %>"></div>
+    <div class="field"><label>Commodity</label><input name="commodity" value="<%= l.commodity || '' %>"></div>
+    <div class="field"><label>Weight</label><input name="weight" value="<%= l.weight || '' %>" placeholder="44,000 lbs"></div>
+    <div class="field"><label>Equipment</label><input name="equipment" value="<%= l.equipment || '' %>" placeholder="Reefer"></div>
+    <div class="field"><label>Rate (linehaul)</label><input name="rate" value="<%= l.rate!=null ? l.rate : '' %>" placeholder="2400"></div>
+  </div>
+  <div class="field"><label>Notes</label><input name="notes" value="<%= l.notes || '' %>" placeholder="Appointment #, special instructions…"></div>
+  <button class="btn gold" type="submit"><%= isNew ? 'Book load' : 'Save changes' %></button>
+</form>
+
+<%- include('partials/foot') %>

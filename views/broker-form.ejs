@@ -1,0 +1,21 @@
+<% var title=(isNew?'Add broker':'Edit broker')+' — BSG Carriers'; var active='brokers'; var b=broker||{}; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<a class="btn sm" href="/admin/brokers">← All brokers</a>
+<h1 style="margin-top:12px"><%= isNew ? 'Add broker' : b.name %></h1>
+<% if (typeof error !== 'undefined' && error) { %><div class="error"><%= error %></div><% } %>
+
+<form method="post" action="<%= isNew ? '/admin/brokers' : '/admin/brokers/' + b.id %>" class="panel" style="max-width:620px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="field"><label>Broker name *</label><input name="name" required value="<%= b.name || '' %>"></div>
+  <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div class="field"><label>Contact name</label><input name="contact_name" value="<%= b.contact_name || '' %>"></div>
+    <div class="field"><label>MC number</label><input name="mc_number" value="<%= b.mc_number || '' %>"></div>
+    <div class="field"><label>Phone</label><input name="phone" value="<%= b.phone || '' %>"></div>
+    <div class="field"><label>Email</label><input name="email" value="<%= b.email || '' %>"></div>
+  </div>
+  <div class="field"><label>Notes</label><input name="notes" value="<%= b.notes || '' %>" placeholder="Credit terms, quick-pay, contacts…"></div>
+  <button class="btn gold" type="submit"><%= isNew ? 'Add broker' : 'Save changes' %></button>
+</form>
+
+<%- include('partials/foot') %>

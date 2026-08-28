@@ -1,0 +1,34 @@
+<% var title='Brokers — BSG Carriers Admin'; var active='brokers'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div style="display:flex;align-items:center;gap:12px">
+  <h1 style="margin:0">Brokers</h1>
+  <a class="btn gold sm" href="/admin/brokers/new" style="margin-left:auto">+ Add broker</a>
+</div>
+<p class="sub">Brokers you book freight with.</p>
+
+<form method="get" action="/admin/brokers" class="filters">
+  <input type="search" name="q" value="<%= q %>" placeholder="Search name, contact, MC…">
+  <button class="btn" type="submit">Search</button>
+  <% if (q) { %><a class="btn" href="/admin/brokers">Clear</a><% } %>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Broker</th><th>Contact</th><th>Phone</th><th>MC</th><th>Loads</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="5" class="muted" style="padding:28px;text-align:center">No brokers yet. <a href="/admin/brokers/new">Add one</a>.</td></tr><% } %>
+      <% rows.forEach(function(b){ %>
+        <tr class="row" onclick="location.href='/admin/brokers/<%= b.id %>'">
+          <td><strong><%= b.name %></strong></td>
+          <td class="muted"><%= b.contact_name || '—' %><% if (b.email) { %><br><%= b.email %><% } %></td>
+          <td class="muted"><%= b.phone || '—' %></td>
+          <td class="muted"><%= b.mc_number || '—' %></td>
+          <td><%= b.load_count %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

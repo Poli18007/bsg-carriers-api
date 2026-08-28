@@ -27,6 +27,7 @@ const leadsRouter = require('./src/routes/leads');
 const adminRouter = require('./src/routes/admin');
 const dispatchRouter = require('./src/routes/dispatch');
 const invoicesRouter = require('./src/routes/invoices');
+const tripsRouter = require('./src/routes/trips');
 const portalRouter = require('./src/routes/portal');
 
 const app = express();
@@ -106,6 +107,7 @@ function csrf(req, res, next) {
 app.use('/admin', sessionMw, csrf, adminRouter);
 app.use('/admin', sessionMw, csrf, dispatchRouter); // brokers, loads, dispatch board
 app.use('/admin', sessionMw, csrf, invoicesRouter); // dispatch-fee invoices
+app.use('/admin', sessionMw, csrf, tripsRouter);    // trips (multi-load routes)
 app.use('/portal', sessionMw, csrf, portalRouter);
 
 // --- Brand asset ------------------------------------------------------------

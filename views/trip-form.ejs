@@ -1,0 +1,25 @@
+<% var title=(isNew?'New trip':'Edit trip')+' — BSG Carriers'; var active='trips'; var t=trip||{};
+   function dv(x){ if(!x) return ''; var d=new Date(x); return isNaN(d)?'':d.toISOString().slice(0,10); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="<%= isNew ? '/admin/trips' : '/admin/trips/' + t.id %>">← Back</a>
+  <h1 style="margin-left:4px"><%= isNew ? 'Plan a trip' : 'Edit trip' %></h1>
+</div>
+
+<form method="post" action="<%= isNew ? '/admin/trips' : '/admin/trips/' + t.id %>" class="panel" style="max-width:760px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+    <div class="field"><label>Name / reference</label><input name="name" value="<%= t.name||'' %>" placeholder="e.g. CA → MN run"></div>
+    <div class="field"><label>Truck</label><select name="truck_id"><option value="">— none —</option><% trucks.forEach(function(tk){ %><option value="<%= tk.id %>" <%= String(t.truck_id)===String(tk.id)?'selected':'' %>><%= tk.number %></option><% }) %></select></div>
+    <div class="field"><label>Driver</label><select name="driver_id"><option value="">— none —</option><% drivers.forEach(function(dr){ %><option value="<%= dr.id %>" <%= String(t.driver_id)===String(dr.id)?'selected':'' %>><%= dr.name %> — <%= dr.company_name %></option><% }) %></select></div>
+    <div class="field"><label>Carrier</label><select name="carrier_id"><option value="">— none —</option><% carriers.forEach(function(c){ %><option value="<%= c.id %>" <%= String(t.carrier_id)===String(c.id)?'selected':'' %>><%= c.company_name %></option><% }) %></select></div>
+    <div class="field"><label>Status</label><select name="status"><% statuses.forEach(function(s){ %><option value="<%= s %>" <%= (t.status||'planned')===s?'selected':'' %>><%= s.replace('_',' ') %></option><% }) %></select></div>
+    <div class="field"><label>Start date</label><input type="date" name="start_date" value="<%= dv(t.start_date) %>"></div>
+    <div class="field"><label>End date</label><input type="date" name="end_date" value="<%= dv(t.end_date) %>"></div>
+  </div>
+  <div class="field"><label>Notes</label><input name="notes" value="<%= t.notes||'' %>"></div>
+  <button class="btn gold" type="submit"><%= isNew ? 'Create trip' : 'Save changes' %></button>
+</form>
+
+<%- include('partials/foot') %>

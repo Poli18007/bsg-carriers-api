@@ -34,6 +34,7 @@
     <div class="field"><label>Driver</label><select name="driver_id"><option value="">— none —</option><% drivers.forEach(function(dr){ %><option value="<%= dr.id %>" <%= String(l.driver_id)===String(dr.id)?'selected':'' %>><%= dr.name %> — <%= dr.company_name %></option><% }) %></select></div>
     <div class="field"><label>Truck</label><select name="truck_id"><option value="">— none —</option><% trucks.forEach(function(tk){ %><option value="<%= tk.id %>" <%= String(l.truck_id)===String(tk.id)?'selected':'' %>><%= tk.number %></option><% }) %></select></div>
     <div class="field"><label>Trailer</label><select name="trailer_id"><option value="">— none —</option><% trailers.forEach(function(tr){ %><option value="<%= tr.id %>" <%= String(l.trailer_id)===String(tr.id)?'selected':'' %>><%= tr.number %></option><% }) %></select></div>
+    <div class="field"><label>Trip</label><select name="trip_id"><option value="">— none —</option><% trips.forEach(function(tp){ %><option value="<%= tp.id %>" <%= String(l.trip_id)===String(tp.id)?'selected':'' %>>TRIP-<%= tp.seq %><%= tp.name?(' · '+tp.name):'' %></option><% }) %></select></div>
     <div class="field"><label>Miles</label><input name="miles" value="<%= l.miles!=null?l.miles:'' %>"></div>
   </div>
 

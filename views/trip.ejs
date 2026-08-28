@@ -1,0 +1,120 @@
+<% var title='TRIP-'+trip.seq+' — BSG Carriers'; var active='trips';
+   function money(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—'; }
+   function when(x){ return x? new Date(x).toLocaleString() : ''; }
+   function place(city,st,fac){ return [fac, [city,st].filter(Boolean).join(', ')].filter(Boolean).join(' · ') || '—'; }
+   function stCls(s){ return s==='completed'?'delivered':(s==='in_transit'?'in_transit':(s==='dispatched'?'dispatched':(s==='cancelled'?'cancelled':'booked'))); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/trips">← Trips</a>
+  <h1 style="margin-left:4px">TRIP-<%= trip.seq %><% if(trip.name){ %> <span class="muted" style="font-weight:400;font-size:16px">· <%= trip.name %></span><% } %></h1>
+  <span class="tag <%= stCls(trip.status) %>"><%= trip.status.replace('_',' ') %></span>
+</div>
+
+<div class="kpis">
+  <div class="kpi"><div class="n"><%= loads.length %></div><div class="l">Loads</div></div>
+  <div class="kpi accent"><div class="n"><%= money(agg.revenue) %></div><div class="l">Revenue</div></div>
+  <div class="kpi"><div class="n"><%= agg.miles || 0 %></div><div class="l">Miles</div></div>
+  <div class="kpi"><div class="n" style="font-size:16px"><%= trip.truck_number || '—' %></div><div class="l">Truck<% if(trip.driver_name){ %> · <%= trip.driver_name %><% } %></div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.6fr 1fr;gap:18px;align-items:start">
+  <div>
+    <h2 style="font-size:15px;margin:6px 0 10px">Route</h2>
+    <div class="panel" style="padding:6px 0">
+      <% if(!loads.length){ %><p class="muted" style="padding:18px;margin:0;text-align:center">No loads on this trip yet — add one on the right.</p><% } %>
+      <% loads.forEach(function(l, i){ %>
+        <div class="leg">
+          <div class="leg-head">
+            <span class="leg-ref"><a href="/admin/loads/<%= l.id %>"><%= l.ref || ('#'+l.id) %></a></span>
+            <% if(l.col_name){ %><span class="tag" style="background:<%= (l.col_color||'#888') %>26;color:<%= l.col_color||'#9a9ba3' %>"><%= l.col_name %></span><% } %>
+            <span class="leg-rate"><%= money(l.rate) %></span>
+            <span class="leg-tools">
+              <% if(i>0){ %><form method="post" action="/admin/trips/<%= trip.id %>/loads/<%= l.id %>/move" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="dir" value="up"><button class="btn sm" type="submit" title="Move up">↑</button></form><% } %>
+              <% if(i<loads.length-1){ %><form method="post" action="/admin/trips/<%= trip.id %>/loads/<%= l.id %>/move" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="dir" value="down"><button class="btn sm" type="submit" title="Move down">↓</button></form><% } %>
+              <form method="post" action="/admin/trips/<%= trip.id %>/loads/<%= l.id %>/remove" style="display:inline" onsubmit="return confirm('Remove this load from the trip?')"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit" title="Remove">✕</button></form>
+            </span>
+          </div>
+          <div class="stops">
+            <div class="stop"><span class="pin p">P</span><div><div class="where"><%= place(l.pickup_city, l.pickup_state, l.pickup_name) %></div><div class="muted when"><%= l.pickup_appt || d(l.pickup_date) %></div></div></div>
+            <div class="stop"><span class="pin dd">D</span><div><div class="where"><%= place(l.delivery_city, l.delivery_state, l.delivery_name) %></div><div class="muted when"><%= l.delivery_appt || d(l.delivery_date) %></div></div></div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+
+    <h2 style="font-size:15px;margin:22px 0 10px">Activity</h2>
+    <div class="panel" style="padding:8px 16px">
+      <% if(!events.length){ %><p class="muted" style="padding:10px 0;margin:0">No check calls or status changes on this trip's loads yet.</p><% } %>
+      <% events.forEach(function(e){ %>
+        <div style="display:flex;gap:11px;padding:10px 0;border-bottom:1px solid var(--line-soft)">
+          <span class="tag <%= e.kind==='status'?'dispatched':(e.kind==='check_call'?'booked':'read') %>" style="height:fit-content"><%= (e.ref||'load') %></span>
+          <div><div><%= e.body %></div><div class="muted" style="font-size:11.5px"><%= when(e.created_at) %><% if(e.staff_email){ %> · <%= e.staff_email %><% } %></div></div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel" style="padding:16px">
+      <h2 style="font-size:14px;margin:0 0 12px">Add a load</h2>
+      <form method="post" action="/admin/trips/<%= trip.id %>/loads" style="display:flex;gap:8px;align-items:end;flex-wrap:wrap">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="field" style="margin:0;flex:1;min-width:180px"><label>Unassigned load</label>
+          <select name="load_id" required>
+            <option value="">— pick a load —</option>
+            <% available.forEach(function(l){ %><option value="<%= l.id %>"><%= l.ref || ('#'+l.id) %> · <%= l.origin||'?' %> → <%= l.destination||'?' %></option><% }) %>
+          </select>
+        </div>
+        <button class="btn gold" type="submit">Add</button>
+      </form>
+      <p class="muted" style="font-size:12px;margin:10px 0 0">Only loads not already on a trip appear here. Book new loads from the board.</p>
+    </div>
+
+    <div class="panel" style="padding:16px;margin-top:16px">
+      <h2 style="font-size:14px;margin:0 0 12px">Status</h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <% statuses.forEach(function(s){ %>
+          <form method="post" action="/admin/trips/<%= trip.id %>/status" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm <%= trip.status===s?'gold':'' %>" name="status" value="<%= s %>" <%= trip.status===s?'disabled':'' %>><%= s.replace('_',' ') %></button></form>
+        <% }) %>
+      </div>
+    </div>
+
+    <div class="panel" style="padding:16px;margin-top:16px">
+      <h2 style="font-size:14px;margin:0 0 12px">Trip details</h2>
+      <form method="post" action="/admin/trips/<%= trip.id %>">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="status" value="<%= trip.status %>">
+        <div class="field"><label>Name</label><input name="name" value="<%= trip.name||'' %>"></div>
+        <div class="field"><label>Truck</label><select name="truck_id"><option value="">— none —</option><% trucks.forEach(function(tk){ %><option value="<%= tk.id %>" <%= String(trip.truck_id)===String(tk.id)?'selected':'' %>><%= tk.number %></option><% }) %></select></div>
+        <div class="field"><label>Driver</label><select name="driver_id"><option value="">— none —</option><% drivers.forEach(function(dr){ %><option value="<%= dr.id %>" <%= String(trip.driver_id)===String(dr.id)?'selected':'' %>><%= dr.name %></option><% }) %></select></div>
+        <div class="field"><label>Carrier</label><select name="carrier_id"><option value="">— none —</option><% carriers.forEach(function(c){ %><option value="<%= c.id %>" <%= String(trip.carrier_id)===String(c.id)?'selected':'' %>><%= c.company_name %></option><% }) %></select></div>
+        <button class="btn" type="submit">Save details</button>
+      </form>
+    </div>
+
+    <form method="post" action="/admin/trips/<%= trip.id %>/delete" style="margin-top:16px" onsubmit="return confirm('Delete this trip? Its loads are kept and unassigned.')">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm danger" type="submit">Delete trip</button>
+    </form>
+  </div>
+</div>
+
+<style>
+  .leg{padding:12px 16px;border-bottom:1px solid var(--line-soft)}
+  .leg:last-child{border-bottom:0}
+  .leg-head{display:flex;align-items:center;gap:10px}
+  .leg-ref{font-weight:800}
+  .leg-rate{color:var(--gold);font-weight:700;margin-left:4px}
+  .leg-tools{margin-left:auto;display:flex;gap:4px}
+  .stops{margin-top:8px;padding-left:4px}
+  .stop{display:flex;gap:11px;align-items:flex-start;position:relative;padding:5px 0}
+  .stop:first-child::after{content:"";position:absolute;left:10px;top:24px;bottom:-5px;width:2px;background:var(--line)}
+  .pin{width:22px;height:22px;border-radius:50%;flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;z-index:1}
+  .pin.p{background:var(--gold-soft);color:var(--gold)}
+  .pin.dd{background:rgba(127,176,224,.18);color:#a9cdf0}
+  .stop .where{font-weight:600;font-size:13.5px}
+  .stop .when{font-size:12px}
+</style>
+
+<%- include('partials/foot') %>

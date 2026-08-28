@@ -1,0 +1,46 @@
+<% var title='Trips — BSG Carriers'; var active='trips';
+   function money(n){ return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—'; }
+   function stCls(s){ return s==='completed'?'delivered':(s==='in_transit'?'in_transit':(s==='dispatched'?'dispatched':(s==='cancelled'?'cancelled':'booked'))); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Trips</h1>
+  <a class="btn gold spacer" href="/admin/trips/new">+ New trip</a>
+</div>
+<p class="sub">A truck's route across one or more loads — plan it, dispatch it, track it to delivery.</p>
+
+<div class="kpis">
+  <div class="kpi accent"><div class="n"><%= counts.active %></div><div class="l">Active trips</div></div>
+  <div class="kpi"><div class="n"><%= counts.completed %></div><div class="l">Completed</div></div>
+</div>
+
+<form method="get" action="/admin/trips" class="filters">
+  <select name="status" onchange="this.form.submit()">
+    <option value="">All statuses</option>
+    <% ['planned','dispatched','in_transit','completed','cancelled'].forEach(function(s){ %><option value="<%= s %>" <%= filter.status===s?'selected':'' %>><%= s.replace('_',' ') %></option><% }) %>
+  </select>
+  <a class="btn" href="/admin/trips">Clear</a>
+</form>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Trip</th><th>Truck / Driver</th><th>Carrier</th><th>Loads</th><th>Revenue</th><th>Dates</th><th>Status</th></tr></thead>
+    <tbody>
+      <% if (!rows.length) { %><tr><td colspan="7" class="muted" style="padding:28px;text-align:center">No trips yet. <a href="/admin/trips/new">Plan one</a>.</td></tr><% } %>
+      <% rows.forEach(function(t){ %>
+        <tr class="row" onclick="location.href='/admin/trips/<%= t.id %>'">
+          <td><strong>TRIP-<%= t.seq %></strong><% if(t.name){ %><div class="muted" style="font-size:11px"><%= t.name %></div><% } %></td>
+          <td class="muted"><%= t.truck_number || '—' %><% if(t.driver_name){ %> · <%= t.driver_name %><% } %></td>
+          <td class="muted"><%= t.carrier_name || '—' %></td>
+          <td><%= t.load_count %></td>
+          <td><%= money(t.revenue) %></td>
+          <td class="muted"><%= d(t.start_date) %><% if(t.end_date){ %> → <%= d(t.end_date) %><% } %></td>
+          <td><span class="tag <%= stCls(t.status) %>"><%= t.status.replace('_',' ') %></span></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

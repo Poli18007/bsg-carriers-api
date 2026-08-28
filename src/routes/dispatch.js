@@ -219,14 +219,15 @@ async function formData() {
   const [customers] = await pool.query('SELECT id, name FROM customers ORDER BY name');
   const [trucks] = await pool.query('SELECT id, number FROM trucks WHERE active ORDER BY number');
   const [trailers] = await pool.query('SELECT id, number FROM trailers WHERE active ORDER BY number');
-  return { brokers, carriers, drivers, columns, labels, dispatchers, customers, trucks, trailers };
+  const [trips] = await pool.query("SELECT id, seq, name FROM trips WHERE status <> 'completed' AND status <> 'cancelled' ORDER BY seq DESC");
+  return { brokers, carriers, drivers, columns, labels, dispatchers, customers, trucks, trailers, trips };
 }
 
 function loadValues(b) {
   return {
     ref: clip(b.ref, 60), broker_id: intOrNull(b.broker_id), carrier_id: intOrNull(b.carrier_id), driver_id: intOrNull(b.driver_id),
     column_id: intOrNull(b.column_id), label_id: intOrNull(b.label_id), dispatcher_id: intOrNull(b.dispatcher_id),
-    customer_id: intOrNull(b.customer_id), truck_id: intOrNull(b.truck_id), trailer_id: intOrNull(b.trailer_id),
+    customer_id: intOrNull(b.customer_id), truck_id: intOrNull(b.truck_id), trailer_id: intOrNull(b.trailer_id), trip_id: intOrNull(b.trip_id),
     customer: clip(b.customer, 200), pu_number: clip(b.pu_number, 60),
     origin: lane(b.pickup_city, b.pickup_state), destination: lane(b.delivery_city, b.delivery_state),
     pickup_name: clip(b.pickup_name, 200), pickup_address: clip(b.pickup_address, 255), pickup_city: clip(b.pickup_city, 80),
@@ -240,7 +241,7 @@ function loadValues(b) {
   };
 }
 const LOAD_COLS = ['ref', 'broker_id', 'carrier_id', 'driver_id', 'column_id', 'label_id', 'dispatcher_id',
-  'customer_id', 'truck_id', 'trailer_id', 'customer', 'pu_number',
+  'customer_id', 'truck_id', 'trailer_id', 'trip_id', 'customer', 'pu_number',
   'origin', 'destination', 'pickup_name', 'pickup_address', 'pickup_city',
   'pickup_state', 'pickup_zip', 'pickup_appt', 'pickup_ref', 'pickup_instructions', 'delivery_name', 'delivery_address', 'delivery_city',
   'delivery_state', 'delivery_zip', 'delivery_appt', 'delivery_ref', 'delivery_instructions', 'commodity', 'weight', 'equipment', 'miles', 'rate', 'status', 'notes'];

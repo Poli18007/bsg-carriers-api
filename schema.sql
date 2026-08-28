@@ -332,6 +332,36 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS truck_id INTEGER REFERENCES trucks(id
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS trailer_id INTEGER REFERENCES trailers(id) ON DELETE SET NULL;
 
 -- ===========================================================================
+-- Trips — a truck/driver's route covering one or more loads
+-- ===========================================================================
+
+-- A trip groups the loads a truck runs as one route. Its waypoints and delivery
+-- timeline are derived from the pickups/deliveries of its loads (ordered by
+-- loads.stop_seq), so a trip is a planning + tracking layer over loads, not a
+-- second copy of the route data.
+CREATE TABLE IF NOT EXISTS trips (
+  id          SERIAL PRIMARY KEY,
+  seq         INTEGER NOT NULL,
+  name        TEXT,
+  truck_id    INTEGER REFERENCES trucks(id) ON DELETE SET NULL,
+  driver_id   INTEGER REFERENCES drivers(id) ON DELETE SET NULL,
+  carrier_id  INTEGER REFERENCES carriers(id) ON DELETE SET NULL,
+  status      TEXT NOT NULL DEFAULT 'planned'
+                CHECK (status IN ('planned','dispatched','in_transit','completed','cancelled')),
+  start_date  DATE,
+  end_date    DATE,
+  notes       TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_trips_status ON trips (status);
+
+-- A load can belong to a trip; stop_seq orders it within the trip's route.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS trip_id INTEGER REFERENCES trips(id) ON DELETE SET NULL;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS stop_seq INTEGER;
+CREATE INDEX IF NOT EXISTS idx_loads_trip ON loads (trip_id, stop_seq);
+
+-- ===========================================================================
 -- Billing — dispatch-fee invoices (a dispatcher's revenue)
 -- ===========================================================================
 

@@ -14,6 +14,7 @@
     board: '<rect x="3" y="4" width="4" height="16" rx="1"/><rect x="10" y="4" width="4" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/>',
     trailer:'<rect x="2" y="7" width="14" height="9" rx="1"/><path d="M16 10h4l2 3v3h-6z"/><circle cx="8" cy="18" r="1.6"/><circle cx="18" cy="18" r="1.6"/>',
     list:  '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    trip:  '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M5 8v3a4 4 0 0 0 4 4h4a4 4 0 0 1 4 4"/>',
     truck: '<path d="M2 6h11v9H2zM13 9h4l3 3v3h-7z"/><circle cx="6.5" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/>',
     carrier:'<path d="M12 2 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7z"/>',
     customer:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
@@ -192,6 +193,7 @@
       <a class="sb-link <%= A==='board'?'active':'' %>" href="/admin/board"><%- ic('board') %> Loads board</a>
       <a class="sb-link <%= A==='trailers'?'active':'' %>" href="/admin/trailers"><%- ic('trailer') %> Trailers board</a>
       <a class="sb-link <%= A==='loads'?'active':'' %>" href="/admin/loads"><%- ic('list') %> All loads</a>
+      <a class="sb-link <%= A==='trips'?'active':'' %>" href="/admin/trips"><%- ic('trip') %> Trips</a>
 
       <div class="sb-sec">Fleet &amp; partners</div>
       <a class="sb-link <%= A==='trucks'?'active':'' %>" href="/admin/trucks"><%- ic('truck') %> Trucks</a>

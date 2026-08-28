@@ -115,7 +115,17 @@ app.get('/health', async (req, res) => {
   catch (err) { res.status(500).json({ ok: false, error: 'db_unreachable' }); }
 });
 
-app.get('/', (req, res) => res.redirect('/admin'));
+// Root returns 200 (not a redirect) so the platform's health check on "/" reads
+// cleanly. Humans are still sent to the dashboard via a meta-refresh, which is
+// not an HTTP redirect and so does not trip the "app is redirecting" warning.
+app.get('/', (req, res) => {
+  res.status(200).type('html').send(
+    '<!doctype html><meta charset="utf-8"><title>BSG Carriers API</title>' +
+    '<meta http-equiv="refresh" content="0; url=/admin">' +
+    '<body style="font-family:system-ui;background:#0e0f12;color:#e9e9ec;padding:40px">' +
+    'BSG Carriers API. <a style="color:#DCB555" href="/admin">Open the admin dashboard →</a></body>'
+  );
+});
 
 // 404 + error handler
 app.use((req, res) => res.status(404).json({ ok: false, error: 'Not found' }));

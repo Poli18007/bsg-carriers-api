@@ -12,7 +12,7 @@
 <% if (typeof error !== 'undefined' && error) { %><div class="error"><%= error %></div><% } %>
 
 <% if (!isNew) { %>
-<form method="post" action="/admin/loads/<%= l.id %>/column" class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+<form method="post" action="/admin/loads/<%= l.id %>/column" class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px;padding:12px 16px">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <span class="muted" style="margin-right:4px">Move to:</span>
   <% columns.forEach(function(col){ %><button class="btn sm" name="column_id" value="<%= col.id %>" <%= String(l.column_id)===String(col.id)?'disabled':'' %>><%= col.name %></button><% }) %>

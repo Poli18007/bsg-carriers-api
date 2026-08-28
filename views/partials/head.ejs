@@ -99,8 +99,12 @@
   .btn.danger:hover{border-color:var(--danger);color:var(--danger)}
 
   /* ---- Surfaces ----------------------------------------------------------- */
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
-  main > .panel, main > form.panel{padding:0}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);padding:20px}
+  /* A panel that is just a data table (or a definition list) stays flush so the
+     table fills the card edge to edge; everything else — forms, mixed content —
+     gets comfortable padding. */
+  .panel:has(> table:only-child),
+  .panel:has(> dl:only-child){padding:0}
   table{width:100%;border-collapse:collapse}
   th,td{text-align:left;padding:11px 15px;border-bottom:1px solid var(--line-soft);vertical-align:top}
   th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700;background:var(--panel-2)}

@@ -1,8 +1,9 @@
 <% var title = 'Sign in — BSG Carriers Admin'; var user = null; %>
 <%- include('partials/head', { title: title, user: user }) %>
 <div class="login-wrap">
-  <h1>BSG Carriers</h1>
-  <p class="sub">Dispatch admin — staff sign in</p>
+  <img src="/brand/logo.png" alt="BSG Carriers" style="height:50px;width:auto;margin-bottom:20px">
+  <h1>Dispatch Admin</h1>
+  <p class="sub">Staff sign in</p>
   <% if (error) { %><div class="error"><%= error %></div><% } %>
   <form method="post" action="/admin/login" class="panel" style="padding:20px">
     <input type="hidden" name="_csrf" value="<%= csrfToken %>">

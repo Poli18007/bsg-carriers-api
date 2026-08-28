@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title><%= typeof title !== 'undefined' ? title : 'BSG Carriers — Carrier Portal' %></title>
+<link rel="icon" type="image/png" href="/brand/favicon.png">
+<link rel="apple-touch-icon" href="/brand/favicon.png">
 <style>
   :root{--black:#0b0b0c;--panel:#15161a;--line:#26272e;--gold:#DCB555;--gold-600:#c39f43;
     --text:#e9e9ec;--muted:#9a9ba3;--bg:#0e0f12;--danger:#e05555;--ok:#DCB555;--info:#7fb0e0;--warn:#e0b060;}
@@ -68,7 +70,10 @@
 <div class="stripe"></div>
 <% if (typeof carrier !== 'undefined' && carrier) { %>
 <header class="top">
-  <span class="brand">BSG<b>·</b>CARRIERS <span class="muted" style="font-weight:500">Carrier Portal</span></span>
+  <a href="/portal" class="brand" style="display:flex;align-items:center;gap:11px;text-decoration:none">
+    <img src="/brand/logo.png" alt="BSG Carriers" style="height:38px;width:auto">
+    <span class="muted" style="font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.14em;padding-left:11px;border-left:1px solid var(--line)">Carrier Portal</span>
+  </a>
   <nav>
     <a href="/portal" class="<%= (typeof active!=='undefined'&&active==='home')?'active':'' %>">Dashboard</a>
     <a href="/portal/loads" class="<%= (typeof active!=='undefined'&&active==='loads')?'active':'' %>">My Loads</a>

@@ -215,5 +215,54 @@ ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_appt TEXT;
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_ref TEXT;
 ALTER TABLE loads ADD COLUMN IF NOT EXISTS delivery_instructions TEXT;
 
+-- ===========================================================================
+-- Phase A — editable boards & columns, load labels (KanbanFlow-style)
+-- ===========================================================================
+
+-- A board is a kanban surface. One per kind for now (a Loads board and a
+-- Trailers board), but the model allows more.
+CREATE TABLE IF NOT EXISTS boards (
+  id         SERIAL PRIMARY KEY,
+  name       TEXT NOT NULL,
+  kind       TEXT NOT NULL CHECK (kind IN ('loads','trailers')),
+  sort       INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (kind)
+);
+
+-- Editable columns on a board (workflow stages, yards, regional runs). Users
+-- create/rename/reorder/recolor/delete these. `category` lets reporting and the
+-- carrier portal reason about a column ('delivered', 'active', …) without
+-- hard-coding names.
+CREATE TABLE IF NOT EXISTS board_columns (
+  id         SERIAL PRIMARY KEY,
+  board_id   INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  sort       INTEGER NOT NULL DEFAULT 0,
+  color      TEXT,
+  category   TEXT NOT NULL DEFAULT 'other'
+               CHECK (category IN ('active','in_transit','delivered','done','yard','other')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (board_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_bcol_board ON board_columns (board_id, sort);
+
+-- Colored load-type labels (KLF Truck, Owner Op, Exemplis OB, …). Editable.
+CREATE TABLE IF NOT EXISTS labels (
+  id    SERIAL PRIMARY KEY,
+  name  TEXT NOT NULL UNIQUE,
+  color TEXT,
+  sort  INTEGER NOT NULL DEFAULT 0
+);
+
+-- Loads gain a board column (their live position/state) and a label. Added via
+-- ALTER because the loads table already exists in production.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS column_id INTEGER REFERENCES board_columns(id) ON DELETE SET NULL;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS label_id INTEGER REFERENCES labels(id) ON DELETE SET NULL;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS customer TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS pu_number TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS dispatcher_id INTEGER REFERENCES staff_users(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_loads_column ON loads (column_id);
+
 -- Sessions are held in signed cookies (cookie-session), so there is no session
 -- table on Postgres — nothing to define here.

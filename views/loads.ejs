@@ -1,47 +1,45 @@
-<% var title='Dispatch board — BSG Carriers'; var active='loads';
+<% var title='Dispatch — BSG Carriers'; var active='loads';
    function money(n){ return n==null?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); }
    function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—'; } %>
 <%- include('partials/head', { title: title, active: active }) %>
 
 <div style="display:flex;align-items:center;gap:12px">
-  <h1 style="margin:0">Dispatch board</h1>
+  <h1 style="margin:0"><%= board.name %></h1>
   <a class="btn sm" href="/admin/board" style="margin-left:auto">Kanban view</a>
+  <a class="btn sm" href="/admin/boards/<%= board.id %>/columns">Columns</a>
   <a class="btn gold sm" href="/admin/loads/new">+ New load</a>
 </div>
-<p class="sub">Every booked load, from booking to paid.</p>
+<p class="sub">Every load. Filter by column, label or carrier.</p>
 
 <div class="kpis">
   <div class="kpi"><div class="n"><%= counts.active %></div><div class="l">Active loads</div></div>
   <div class="kpi"><div class="n"><%= money(counts.active_rate) %></div><div class="l">Active revenue</div></div>
+  <div class="kpi"><div class="n"><%= counts.in_transit %></div><div class="l">In transit</div></div>
   <div class="kpi"><div class="n"><%= counts.delivered %></div><div class="l">Delivered</div></div>
-  <div class="kpi"><div class="n"><%= counts.paid %></div><div class="l">Paid</div></div>
 </div>
 
 <form method="get" action="/admin/loads" class="filters">
-  <input type="search" name="q" value="<%= filter.q %>" placeholder="Search ref, lane, broker, carrier…">
-  <select name="status">
-    <option value="">Active (default)</option>
-    <% statuses.forEach(function(s){ %><option value="<%= s %>" <%= filter.status===s?'selected':'' %>><%= s.replace('_',' ') %></option><% }) %>
-  </select>
+  <input type="search" name="q" value="<%= filter.q %>" placeholder="Search ref, customer, lane, carrier…">
+  <select name="column"><option value="">All columns</option><% columns.forEach(function(c){ %><option value="<%= c.id %>" <%= String(filter.column)===String(c.id)?'selected':'' %>><%= c.name %></option><% }) %></select>
+  <select name="label"><option value="">All labels</option><% labels.forEach(function(lb){ %><option value="<%= lb.id %>" <%= String(filter.label)===String(lb.id)?'selected':'' %>><%= lb.name %></option><% }) %></select>
   <button class="btn" type="submit">Filter</button>
   <a class="btn" href="/admin/loads">Clear</a>
 </form>
 
 <div class="panel">
   <table>
-    <thead><tr><th>Ref</th><th>Lane</th><th>Pickup</th><th>Delivery</th><th>Carrier</th><th>Broker</th><th>Rate</th><th>Status</th></tr></thead>
+    <thead><tr><th>Ref</th><th>Customer / Lane</th><th>Pickup</th><th>Delivery</th><th>Carrier</th><th>Rate</th><th>Column</th></tr></thead>
     <tbody>
-      <% if (!rows.length) { %><tr><td colspan="8" class="muted" style="padding:28px;text-align:center">No loads. <a href="/admin/loads/new">Book one</a>.</td></tr><% } %>
+      <% if (!rows.length) { %><tr><td colspan="7" class="muted" style="padding:28px;text-align:center">No loads. <a href="/admin/loads/new">Book one</a>.</td></tr><% } %>
       <% rows.forEach(function(l){ %>
-        <tr class="row" onclick="location.href='/admin/loads/<%= l.id %>'">
-          <td><strong><%= l.ref || ('#' + l.id) %></strong></td>
-          <td><%= l.origin || '—' %> <span class="muted">→</span> <%= l.destination || '—' %></td>
+        <tr class="row" onclick="location.href='/admin/loads/<%= l.id %>'" <% if(l.label_color){ %>style="box-shadow:inset 3px 0 0 0 <%= l.label_color %>"<% } %>>
+          <td><strong><%= l.ref || ('#'+l.id) %></strong><% if(l.pu_number){ %><div class="muted" style="font-size:11px">PU <%= l.pu_number %></div><% } %></td>
+          <td><% if(l.customer){ %><strong><%= l.customer %></strong><br><% } %><span class="muted"><%= l.origin || '—' %> → <%= l.destination || '—' %></span></td>
           <td class="muted"><%= d(l.pickup_date) %></td>
           <td class="muted"><%= d(l.delivery_date) %></td>
           <td class="muted"><%= l.carrier_name || '—' %></td>
-          <td class="muted"><%= l.broker_name || '—' %></td>
           <td style="white-space:nowrap"><%= money(l.rate) %></td>
-          <td><span class="tag <%= l.status %>"><%= l.status.replace('_',' ') %></span></td>
+          <td><% if(l.col_name){ %><span class="tag" style="background:<%= (l.col_color||'#888') %>33;color:<%= l.col_color||'#9a9ba3' %>"><%= l.col_name %></span><% } else { %>—<% } %></td>
         </tr>
       <% }) %>
     </tbody>

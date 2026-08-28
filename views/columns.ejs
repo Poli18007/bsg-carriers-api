@@ -1,0 +1,44 @@
+<% var title='Columns — '+board.name; var active= board.kind==='trailers'?'trailers':'loads'; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div style="display:flex;align-items:center;gap:12px">
+  <a class="btn sm" href="<%= board.kind==='trailers' ? '/admin/trailers' : '/admin/board' %>">← Board</a>
+  <h1 style="margin:0 0 0 4px"><%= board.name %> columns</h1>
+</div>
+<p class="sub">Add, rename, recolor, reorder or remove the columns on this board.</p>
+
+<div class="panel" style="max-width:760px">
+  <table style="width:100%;border-collapse:collapse">
+    <thead><tr style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;text-align:left">
+      <th style="padding:8px">Name</th><th style="padding:8px">Color</th><th style="padding:8px">Category</th><th style="padding:8px">Order</th><th></th></tr></thead>
+    <tbody>
+      <% columns.forEach(function(col,i){ %>
+        <tr style="border-top:1px solid var(--line)">
+          <form method="post" action="/admin/columns/<%= col.id %>" style="display:contents">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <td style="padding:8px"><input name="name" value="<%= col.name %>" style="width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:7px 10px;border-radius:6px"></td>
+            <td style="padding:8px"><input name="color" type="color" value="<%= col.color||'#9a9ba3' %>" style="width:44px;height:34px;background:none;border:1px solid var(--line);border-radius:6px"></td>
+            <td style="padding:8px"><select name="category" style="background:var(--bg);border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:6px"><% categories.forEach(function(c){ %><option value="<%= c %>" <%= col.category===c?'selected':'' %>><%= c.replace('_',' ') %></option><% }) %></select></td>
+            <td style="padding:8px;white-space:nowrap"><button class="btn sm gold" type="submit">Save</button></td>
+          </form>
+          <td style="padding:8px;white-space:nowrap;text-align:right">
+            <% if(i>0){ %><form method="post" action="/admin/columns/<%= col.id %>/move" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="dir" value="up"><button class="btn sm" type="submit">↑</button></form><% } %>
+            <% if(i<columns.length-1){ %><form method="post" action="/admin/columns/<%= col.id %>/move" style="display:inline"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><input type="hidden" name="dir" value="down"><button class="btn sm" type="submit">↓</button></form><% } %>
+            <% if(columns.length>1){ %><form method="post" action="/admin/columns/<%= col.id %>/delete" style="display:inline" onsubmit="return confirm('Delete column &quot;<%= col.name %>&quot;? Its cards move to the first column.')"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit">✕</button></form><% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<h2 style="font-size:15px">Add a column</h2>
+<form method="post" action="/admin/boards/<%= board.id %>/columns" class="panel" style="display:flex;gap:10px;align-items:end;max-width:760px;flex-wrap:wrap">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="field" style="margin:0;flex:1;min-width:160px"><label>Name</label><input name="name" required placeholder="e.g. Lodi Yard"></div>
+  <div class="field" style="margin:0"><label>Color</label><input name="color" type="color" value="#9a9ba3" style="width:48px;height:38px;background:none;border:1px solid var(--line);border-radius:8px"></div>
+  <div class="field" style="margin:0"><label>Category</label><select name="category"><% categories.forEach(function(c){ %><option value="<%= c %>"><%= c.replace('_',' ') %></option><% }) %></select></div>
+  <button class="btn gold" type="submit">Add column</button>
+</form>
+
+<%- include('partials/foot') %>

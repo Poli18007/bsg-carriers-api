@@ -12,10 +12,10 @@
 <% if (typeof error !== 'undefined' && error) { %><div class="error"><%= error %></div><% } %>
 
 <% if (!isNew) { %>
-<form method="post" action="/admin/loads/<%= l.id %>/status" class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
+<form method="post" action="/admin/loads/<%= l.id %>/column" class="panel" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-  <span class="muted" style="margin-right:4px">Set status:</span>
-  <% statuses.forEach(function(s){ %><button class="btn sm" name="status" value="<%= s %>" <%= l.status===s?'disabled':'' %>><%= s.replace('_',' ') %></button><% }) %>
+  <span class="muted" style="margin-right:4px">Move to:</span>
+  <% columns.forEach(function(col){ %><button class="btn sm" name="column_id" value="<%= col.id %>" <%= String(l.column_id)===String(col.id)?'disabled':'' %>><%= col.name %></button><% }) %>
 </form>
 <% } %>
 
@@ -23,10 +23,14 @@
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
     <div class="field"><label>Reference / load #</label><input name="ref" value="<%= l.ref||'' %>"></div>
-    <div class="field"><label>Status</label><select name="status"><% statuses.forEach(function(s){ %><option value="<%= s %>" <%= (l.status||'booked')===s?'selected':'' %>><%= s.replace('_',' ') %></option><% }) %></select></div>
+    <div class="field"><label>PU # (pickup number)</label><input name="pu_number" value="<%= l.pu_number||'' %>"></div>
+    <div class="field"><label>Customer</label><input name="customer" value="<%= l.customer||'' %>" placeholder="Exemplis"></div>
+    <div class="field"><label>Column</label><select name="column_id"><% columns.forEach(function(col){ %><option value="<%= col.id %>" <%= String(l.column_id)===String(col.id)?'selected':'' %>><%= col.name %></option><% }) %></select></div>
+    <div class="field"><label>Label</label><select name="label_id"><option value="">— none —</option><% labels.forEach(function(lb){ %><option value="<%= lb.id %>" <%= String(l.label_id)===String(lb.id)?'selected':'' %>><%= lb.name %></option><% }) %></select></div>
+    <div class="field"><label>Dispatcher</label><select name="dispatcher_id"><option value="">— none —</option><% dispatchers.forEach(function(u){ %><option value="<%= u.id %>" <%= String(l.dispatcher_id)===String(u.id)?'selected':'' %>><%= u.name %></option><% }) %></select></div>
     <div class="field"><label>Broker</label><select name="broker_id"><option value="">— none —</option><% brokers.forEach(function(b){ %><option value="<%= b.id %>" <%= String(l.broker_id)===String(b.id)?'selected':'' %>><%= b.name %></option><% }) %></select></div>
     <div class="field"><label>Carrier</label><select name="carrier_id"><option value="">— unassigned —</option><% carriers.forEach(function(c){ %><option value="<%= c.id %>" <%= String(l.carrier_id)===String(c.id)?'selected':'' %>><%= c.company_name %></option><% }) %></select></div>
-    <div class="field"><label>Driver</label><select name="driver_id"><option value="">— none —</option><% drivers.forEach(function(d){ %><option value="<%= d.id %>" <%= String(l.driver_id)===String(d.id)?'selected':'' %>><%= d.name %> — <%= d.company_name %></option><% }) %></select></div>
+    <div class="field"><label>Driver</label><select name="driver_id"><option value="">— none —</option><% drivers.forEach(function(dr){ %><option value="<%= dr.id %>" <%= String(l.driver_id)===String(dr.id)?'selected':'' %>><%= dr.name %> — <%= dr.company_name %></option><% }) %></select></div>
     <div class="field"><label>Miles</label><input name="miles" value="<%= l.miles!=null?l.miles:'' %>"></div>
   </div>
 

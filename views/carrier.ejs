@@ -53,6 +53,7 @@
           <span class="tag <%= d.review %>"><%= d.review %></span>
         </div>
       </div>
+      <% if (canApprove) { %>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
         <form method="post" action="/admin/carriers/<%= c.id %>/documents/<%= d.id %>/review" style="margin:0;display:flex;gap:6px">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -72,6 +73,7 @@
         </form>
         <% } %>
       </div>
+      <% } %>
     </div>
   <% }) %>
 </div>
@@ -102,6 +104,7 @@
 </div>
 
 <h2 style="font-size:16px">Onboarding status</h2>
+<% if (canApprove) { %>
 <form method="post" action="/admin/carriers/<%= c.id %>/status" class="panel" style="max-width:620px">
   <input type="hidden" name="_csrf" value="<%= csrfToken %>">
   <div class="field">
@@ -116,5 +119,14 @@
   </div>
   <button class="btn gold" type="submit">Update &amp; notify carrier</button>
 </form>
+<% } else { %>
+<div class="panel" style="max-width:620px">
+  <dl class="dl" style="margin:0">
+    <dt>Status</dt><dd><span class="tag <%= c.status %>"><%= c.status.replace('_',' ') %></span></dd>
+    <dt>Staff notes</dt><dd><%= c.staff_notes || '—' %></dd>
+  </dl>
+  <p class="muted" style="font-size:12px;margin:12px 0 0">Carrier approvals are handled by an admin or manager.</p>
+</div>
+<% } %>
 
 <%- include('partials/foot') %>

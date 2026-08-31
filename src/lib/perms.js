@@ -45,6 +45,9 @@ const SECTION_OF = {
 const sectionsFor = (role) => ROLE_SECTIONS[role] || ROLE_SECTIONS.viewer;
 const can = (role, section) => sectionsFor(role).includes(section);
 const readOnly = (role) => role === 'viewer';
+// Carrier onboarding approval (approve/reject docs, set status, request
+// renewals) is limited to admins and managers. Everyone else is read-only.
+const canApprove = (role) => role === 'admin' || role === 'manager' || role === 'staff';
 
 // Segments a read-only user may still POST to (self-service).
 const SELF_SERVICE = ['logout', 'settings'];
@@ -97,4 +100,4 @@ async function guard(req, res, next) {
   next();
 }
 
-module.exports = { ROLES, ROLE_KEYS, VALID_ROLES, ROLE_SECTIONS, sectionsFor, can, readOnly, guard };
+module.exports = { ROLES, ROLE_KEYS, VALID_ROLES, ROLE_SECTIONS, sectionsFor, can, readOnly, canApprove, guard };

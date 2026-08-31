@@ -291,8 +291,15 @@ router.get('/carriers/:id', async (req, res) => {
     [carrier.id]
   );
   const [drivers] = await pool.query('SELECT * FROM drivers WHERE carrier_id = ? ORDER BY active DESC, name', [carrier.id]);
-  res.render('carrier', { user: req.session.user, carrier, docs, drivers, statuses: CARRIER_STATUSES, csrfToken: req.csrfToken() });
+  res.render('carrier', { user: req.session.user, carrier, docs, drivers, statuses: CARRIER_STATUSES, canApprove: perms.canApprove(req.session.user.role), csrfToken: req.csrfToken() });
 });
+
+// Carrier onboarding decisions are admin/manager only — everyone else may view
+// carriers but not approve/reject documents, set status, or request renewals.
+function approver(req, res, next) {
+  if (perms.canApprove(req.session.user.role)) return next();
+  return res.status(403).render('403', { user: req.session.user, reason: 'approve', section: 'partners' });
+}
 
 // Staff download of any carrier document.
 router.get('/carriers/:id/documents/:docId', async (req, res) => {
@@ -307,14 +314,14 @@ router.get('/carriers/:id/documents/:docId', async (req, res) => {
   res.send(doc.content);
 });
 
-router.post('/carriers/:id/documents/:docId/review', async (req, res) => {
+router.post('/carriers/:id/documents/:docId/review', approver, async (req, res) => {
   const review = ['pending', 'accepted', 'rejected'].includes(req.body.review) ? req.body.review : null;
   if (review) await pool.query('UPDATE carrier_documents SET review = ? WHERE id = ? AND carrier_id = ?', [review, req.params.docId, req.params.id]);
   res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
 });
 
 // Record / update a document's expiry date so the system can flag it before it lapses.
-router.post('/carriers/:id/documents/:docId/expiry', async (req, res) => {
+router.post('/carriers/:id/documents/:docId/expiry', approver, async (req, res) => {
   const d = /^\d{4}-\d{2}-\d{2}$/.test(req.body.expires_at) ? req.body.expires_at : null;
   await pool.query('UPDATE carrier_documents SET expires_at = ?::date WHERE id = ? AND carrier_id = ?', [d, req.params.docId, req.params.id]);
   res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
@@ -322,7 +329,7 @@ router.post('/carriers/:id/documents/:docId/expiry', async (req, res) => {
 
 // Request the carrier upload a fresh copy of a document (e.g. an expiring COI):
 // flag it, and email the carrier a prompt. The doc stays valid until replaced.
-router.post('/carriers/:id/documents/:docId/rerequest', async (req, res) => {
+router.post('/carriers/:id/documents/:docId/rerequest', approver, async (req, res) => {
   const [rows] = await pool.query(
     'UPDATE carrier_documents SET renewal_requested_at = now() WHERE id = ? AND carrier_id = ? RETURNING doc_type',
     [req.params.docId, req.params.id]);
@@ -347,7 +354,7 @@ router.post('/carriers/:id/fee', async (req, res) => {
   res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
 });
 
-router.post('/carriers/:id/status', async (req, res) => {
+router.post('/carriers/:id/status', approver, async (req, res) => {
   const status = CARRIER_STATUSES.includes(req.body.status) ? req.body.status : null;
   const notes = (req.body.staff_notes || '').toString().slice(0, 4000);
   if (!status) return res.status(400).send('Bad status');

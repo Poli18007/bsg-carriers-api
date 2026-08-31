@@ -4,11 +4,13 @@
 <div style="max-width:520px;margin:8vh auto 0;text-align:center">
   <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;letter-spacing:.15em;color:var(--gold);text-transform:uppercase">403 · No access</div>
   <h1 style="margin:12px 0 10px;font-size:26px">
-    <% if (reason === 'readonly') { %>Your account is read-only<% } else { %>This area isn't in your role<% } %>
+    <% if (reason === 'readonly') { %>Your account is read-only<% } else if (reason === 'approve') { %>Approvals are admin &amp; manager only<% } else { %>This area isn't in your role<% } %>
   </h1>
   <p class="sub" style="margin-bottom:22px">
     <% if (reason === 'readonly') { %>
       Your <strong><%= user.role %></strong> role can view the workspace but not make changes. Ask an admin if you need edit access.
+    <% } else if (reason === 'approve') { %>
+      Your <strong><%= user.role %></strong> role can view carriers but not approve them or change their onboarding. An admin or manager handles carrier approvals.
     <% } else { %>
       Your <strong><%= user.role %></strong> role doesn't include the <strong><%= section %></strong> section. If you need it, an admin can change your role on the Staff page.
     <% } %>

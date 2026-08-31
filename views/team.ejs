@@ -1,0 +1,39 @@
+<% var title='Team — BSG Carriers'; var active='team';
+   function money(n){ return n==null?'$0':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
+   function ago(x){ if(!x) return 'never'; var s=(Date.now()-new Date(x).getTime())/1000; if(s<60)return'just now'; if(s<3600)return Math.floor(s/60)+'m ago'; if(s<86400)return Math.floor(s/3600)+'h ago'; return Math.floor(s/86400)+'d ago'; }
+   function roleTag(r){ return r==='admin'?'approved':(r==='dispatcher'?'dispatched':(r==='manager'?'booked':(r==='billing'?'invoiced':'read'))); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Team</h1>
+  <div class="spacer muted" style="display:flex;align-items:center;gap:7px">
+    <span style="width:9px;height:9px;border-radius:50%;background:var(--ok);display:inline-block"></span>
+    <strong style="color:var(--heading)"><%= onlineNow %></strong> online now
+  </div>
+</div>
+<p class="sub">Attendance, workload and performance across the team — this week.</p>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Person</th><th>Role</th><th>Status</th><th>Hours (wk)</th><th>Loads (wk)</th><th>Revenue (wk)</th><th>Last seen</th></tr></thead>
+    <tbody>
+      <% if(!rows.length){ %><tr><td colspan="7" class="muted" style="padding:24px;text-align:center">No active staff yet.</td></tr><% } %>
+      <% rows.forEach(function(u){ %>
+        <tr class="row" onclick="location.href='/admin/team/<%= u.id %>'">
+          <td><strong><%= u.name %></strong><% if(u.title){ %><br><span class="muted" style="font-size:12px"><%= u.title %></span><% } %></td>
+          <td><span class="tag <%= roleTag(u.role) %>"><%= u.role %></span></td>
+          <td>
+            <% if(u.online){ %><span style="color:var(--ok)">● Online</span><% } else { %><span class="muted">○ Offline</span><% } %>
+          </td>
+          <td><strong><%= u.hours_wk %></strong> <span class="muted" style="font-size:12px">h</span></td>
+          <td><%= u.loads_wk %></td>
+          <td><%= money(u.revenue_wk) %></td>
+          <td class="muted" style="white-space:nowrap"><%= ago(u.last_seen) %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<p class="muted" style="font-size:12px;margin-top:14px">Click a person for their scorecard, timesheet and targets. Hours are tracked automatically from sign-in to sign-out (idle gaps over 20 min aren't counted).</p>
+
+<%- include('partials/foot') %>

@@ -35,6 +35,15 @@ router.post('/login', loginLimiter, async (req, res) => {
     const user = await verifyLogin(email, password);
     if (!user) return res.status(401).render('login', { error: 'Wrong email or password.', csrfToken: req.csrfToken() });
     req.session.user = sessionUser(user);
+    // Attendance: close any dangling open session for this user, then open one.
+    try {
+      await pool.query("UPDATE staff_sessions SET logout_at=last_seen_at, ended_reason='idle' WHERE staff_id=? AND logout_at IS NULL", [user.id]);
+      const ua = (req.get('user-agent') || '').slice(0, 300);
+      const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim().slice(0, 60);
+      const [ins] = await pool.query('INSERT INTO staff_sessions (staff_id, ip, user_agent) VALUES (?,?,?) RETURNING id', [user.id, ip, ua]);
+      req.session.user.sid = ins[0].id;
+      req.session.hbAt = Date.now();
+    } catch (e) { console.error('[attendance] open error:', e.message); }
     res.redirect('/admin');
   } catch (err) {
     console.error('[admin] login error:', err.message);
@@ -42,7 +51,9 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 });
 
-router.post('/logout', requireLogin, (req, res) => {
+router.post('/logout', requireLogin, async (req, res) => {
+  const sid = req.session.user && req.session.user.sid;
+  if (sid) { try { await pool.query("UPDATE staff_sessions SET logout_at=now(), ended_reason='logout' WHERE id=? AND logout_at IS NULL", [sid]); } catch (e) { console.error('[attendance] close error:', e.message); } }
   req.session = null; // cookie-session: clearing the object drops the cookie
   res.redirect('/admin/login');
 });

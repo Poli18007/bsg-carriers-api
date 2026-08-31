@@ -20,9 +20,9 @@ const VALID_ROLES = ROLE_KEYS.concat('staff'); // 'staff' kept as a legacy alias
 
 // Which sections each role may open.
 const ROLE_SECTIONS = {
-  admin: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'staff'],
-  manager: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox'],
-  staff: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox'], // legacy
+  admin: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'team', 'staff'],
+  manager: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'team'],
+  staff: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'team'], // legacy
   dispatcher: ['dispatch', 'fleet', 'partners', 'inbox'],
   billing: ['dispatch', 'billing', 'reports', 'partners'],
   viewer: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox'],
@@ -36,6 +36,7 @@ const SECTION_OF = {
   carriers: 'partners', customers: 'partners', brokers: 'partners', drivers: 'partners',
   invoices: 'billing', expenses: 'billing',
   reports: 'reports',
+  team: 'team',
   leads: 'inbox',
   users: 'staff',
   'delete-requests': 'staff',
@@ -49,12 +50,34 @@ const readOnly = (role) => role === 'viewer';
 const SELF_SERVICE = ['logout', 'settings'];
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
+const IDLE_MS = 20 * 60 * 1000; // a gap longer than this closes the session
+
 async function guard(req, res, next) {
   const user = req.session && req.session.user;
   if (user) {
     res.locals.sections = sectionsFor(user.role);
     res.locals.role = user.role;
     res.locals.readOnly = readOnly(user.role);
+    // Attendance heartbeat — throttled to once/min via a session marker so the
+    // several guard passes per request don't each hit the DB. If the last beat
+    // was longer than the idle window ago, close the stale session and open a
+    // fresh one so long away-gaps aren't counted as worked time.
+    if (user.sid) {
+      const now = Date.now();
+      const last = req.session.hbAt || 0;
+      if (now - last > 60000) {
+        req.session.hbAt = now;
+        try {
+          if (now - last > IDLE_MS) {
+            await pool.query("UPDATE staff_sessions SET logout_at=last_seen_at, ended_reason='idle' WHERE id=? AND logout_at IS NULL", [user.sid]);
+            const [ins] = await pool.query('INSERT INTO staff_sessions (staff_id) VALUES (?) RETURNING id', [user.id]);
+            req.session.user.sid = ins[0].id;
+          } else {
+            await pool.query('UPDATE staff_sessions SET last_seen_at=now() WHERE id=? AND logout_at IS NULL', [user.sid]);
+          }
+        } catch (_) { /* attendance is best-effort; never block the request */ }
+      }
+    }
     // Pending-delete-request badge for admins, fetched once per request.
     if (user.role === 'admin' && res.locals.deleteRequests === undefined) {
       try { const [r] = await pool.query('SELECT COUNT(*)::int AS n FROM loads WHERE delete_requested_by IS NOT NULL'); res.locals.deleteRequests = r[0].n; }

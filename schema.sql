@@ -497,3 +497,69 @@ ALTER TABLE staff_users ADD CONSTRAINT staff_users_role_check
 
 -- Sessions are held in signed cookies (cookie-session), so there is no session
 -- table on Postgres — nothing to define here.
+
+-- ===========================================================================
+-- Phase 4 — People & performance (HR): attendance, targets, SLAs, leave
+-- ===========================================================================
+
+-- A few soft HR fields on the staff record.
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS title    TEXT;
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS phone    TEXT;
+ALTER TABLE staff_users ADD COLUMN IF NOT EXISTS hired_at DATE;
+
+-- Attendance: one row per login. last_seen_at is bumped on activity; logout_at
+-- is set on explicit sign-out or when a stale session is idle-closed. Worked
+-- time for a session = COALESCE(logout_at, last_seen_at) - login_at.
+CREATE TABLE IF NOT EXISTS staff_sessions (
+  id            BIGSERIAL PRIMARY KEY,
+  staff_id      INTEGER NOT NULL REFERENCES staff_users(id) ON DELETE CASCADE,
+  login_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  logout_at     TIMESTAMPTZ,
+  ended_reason  TEXT,                       -- 'logout' | 'idle' | NULL (open)
+  ip            TEXT,
+  user_agent    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_staff_sessions_staff ON staff_sessions (staff_id, login_at DESC);
+CREATE INDEX IF NOT EXISTS idx_staff_sessions_open  ON staff_sessions (staff_id) WHERE logout_at IS NULL;
+
+-- Per-person performance targets (goals). One row per staff+metric+period.
+CREATE TABLE IF NOT EXISTS staff_targets (
+  id          BIGSERIAL PRIMARY KEY,
+  staff_id    INTEGER NOT NULL REFERENCES staff_users(id) ON DELETE CASCADE,
+  metric      TEXT NOT NULL,                -- 'loads' | 'ontime_pct' | 'revenue' | 'hours'
+  period      TEXT NOT NULL DEFAULT 'weekly', -- 'weekly' | 'monthly'
+  target      NUMERIC(12,2) NOT NULL,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (staff_id, metric, period)
+);
+
+-- SLA rules: service-level thresholds (in hours) the team is held to. Seeded
+-- with sensible defaults; editable in the app (Phase 2 UI).
+CREATE TABLE IF NOT EXISTS sla_rules (
+  id      BIGSERIAL PRIMARY KEY,
+  code    TEXT UNIQUE NOT NULL,             -- 'assign','checkcall','deliver_update'
+  name    TEXT NOT NULL,
+  hours   NUMERIC(6,2) NOT NULL,
+  active  BOOLEAN NOT NULL DEFAULT true
+);
+INSERT INTO sla_rules (code, name, hours) VALUES
+  ('assign',        'Assign a carrier to a new load within',   4),
+  ('checkcall',     'Check-call cadence on in-transit loads',  8),
+  ('deliver_update','Mark delivered after the delivery date within', 12)
+ON CONFLICT (code) DO NOTHING;
+
+-- Leave / PTO requests (Phase 2 UI).
+CREATE TABLE IF NOT EXISTS leave_requests (
+  id          BIGSERIAL PRIMARY KEY,
+  staff_id    INTEGER NOT NULL REFERENCES staff_users(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL DEFAULT 'pto',  -- 'pto' | 'sick' | 'unpaid' | 'other'
+  start_date  DATE NOT NULL,
+  end_date    DATE NOT NULL,
+  note        TEXT,
+  status      TEXT NOT NULL DEFAULT 'pending', -- 'pending' | 'approved' | 'denied'
+  decided_by  INTEGER REFERENCES staff_users(id) ON DELETE SET NULL,
+  decided_at  TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_leave_staff ON leave_requests (staff_id, start_date DESC);

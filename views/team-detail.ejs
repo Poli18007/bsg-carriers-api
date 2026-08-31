@@ -1,0 +1,114 @@
+<% var title=(person.name)+' — Team'; var active='team';
+   function money(n){ return n==null?'$0':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}):'—'; }
+   function dt(x){ return x?new Date(x).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—'; }
+   function tm(x){ return x?new Date(x).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'—'; }
+   function pct(v,g){ if(g==null||!g) return null; return Math.min(100, Math.round((Number(v||0)/Number(g))*100)); }
+   var maxH = 8; daily.forEach(function(r){ if(Number(r.hours)>maxH) maxH=Number(r.hours); }); %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/team">← Team</a>
+  <h1 style="margin-left:4px"><%= person.name %></h1>
+  <span class="tag <%= person.role==='admin'?'approved':(person.role==='dispatcher'?'dispatched':'booked') %>" style="align-self:center"><%= person.role %></span>
+  <div class="spacer">
+    <a class="btn sm <%= scard.period==='week'?'gold':'' %>" href="/admin/team/<%= person.id %>?period=week">This week</a>
+    <a class="btn sm <%= scard.period==='month'?'gold':'' %>" href="/admin/team/<%= person.id %>?period=month">This month</a>
+  </div>
+</div>
+<p class="sub"><%= person.title || 'Staff member' %> · <%= person.email %><% if(person.phone){ %> · <%= person.phone %><% } %><% if(person.hired_at){ %> · since <%= new Date(person.hired_at).toLocaleDateString(undefined,{month:'short',year:'numeric'}) %><% } %></p>
+
+<% if (msg==='targets') { %><div class="notice">Targets saved.</div><% } else if (msg==='profile') { %><div class="notice">Profile updated.</div><% } else if (msg==='err') { %><div class="error">Couldn't save — please try again.</div><% } %>
+
+<h2 style="font-size:15px;margin:6px 0 10px">Scorecard — <%= scard.period==='week'?'this week':'this month' %></h2>
+<% var cards=[
+  {l:'Loads handled', v: scard.handled + (goals.loads!=null?(' <small>/ '+goals.loads+'</small>'):''), p: pct(scard.handled, goals.loads)},
+  {l:'On-time delivery', v:(scard.ontimePct==null?'—':scard.ontimePct+'%')+(goals.ontime_pct!=null?(' <small>/ '+goals.ontime_pct+'%</small>'):''), p: scard.ontimePct==null?null:pct(scard.ontimePct, goals.ontime_pct)},
+  {l:'Revenue managed', v: money(scard.revenue)+(goals.revenue!=null?(' <small>/ '+money(goals.revenue)+'</small>'):''), p: pct(scard.revenue, goals.revenue)},
+  {l:'Avg response', v:(scard.respHrs==null?'—':scard.respHrs+' h'), p:null},
+  {l:'Hours worked', v: scard.hours+' h'+(goals.hours!=null?(' <small>/ '+goals.hours+'h</small>'):''), p: pct(scard.hours, goals.hours)},
+  {l:'Sign-ins', v:String(scard.sessions), p:null}
+]; %>
+<div class="kpis">
+  <% cards.forEach(function(c){ %>
+    <div class="kpi <%= c.p!=null && c.p>=100 ? 'accent':'' %>">
+      <div class="n"><%- c.v %></div>
+      <div class="l"><%= c.l %></div>
+      <% if (c.p!=null) { %><div class="bar"><span style="width:<%= c.p %>%"></span></div><% } %>
+    </div>
+  <% }) %>
+</div>
+
+<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start;margin-top:8px">
+  <div>
+    <h2 style="font-size:15px;margin:6px 0 10px">Timesheet — last 14 days</h2>
+    <div class="panel">
+      <% if(!daily.length){ %><p class="muted" style="margin:0;padding:8px">No sign-ins recorded yet.</p><% } %>
+      <% daily.forEach(function(r){ %>
+        <div class="ts-row">
+          <div class="ts-day"><%= d(r.d) %></div>
+          <div class="ts-bar"><span style="width:<%= Math.round((Number(r.hours)/maxH)*100) %>%"></span></div>
+          <div class="ts-h"><strong><%= r.hours %></strong>h <span class="muted" style="font-size:11px"><%= r.sessions %>×</span></div>
+        </div>
+      <% }) %>
+    </div>
+
+    <h2 style="font-size:15px;margin:22px 0 10px">Recent sign-ins</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Signed in</th><th>Last active</th><th>Out</th><th>Hours</th></tr></thead>
+        <tbody>
+          <% if(!sessions.length){ %><tr><td colspan="4" class="muted" style="padding:20px;text-align:center">No sessions yet.</td></tr><% } %>
+          <% sessions.forEach(function(s){ %>
+            <tr>
+              <td><%= dt(s.login_at) %></td>
+              <td class="muted"><%= tm(s.last_seen_at) %></td>
+              <td><% if(s.logout_at){ %><span class="muted"><%= tm(s.logout_at) %></span> <span class="tag read" style="font-size:10px"><%= s.ended_reason||'' %></span><% } else { %><span style="color:var(--ok)">● open</span><% } %></td>
+              <td><strong><%= s.hours %></strong></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div>
+    <% if (canEdit) { %>
+    <h2 style="font-size:15px;margin:6px 0 10px">Targets (<%= tperiod %>)</h2>
+    <form class="panel" method="post" action="/admin/team/<%= person.id %>/targets">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <input type="hidden" name="period" value="<%= tperiod %>">
+      <p class="muted" style="font-size:12px;margin:0 0 12px">Leave a field blank to clear that goal. Switch week / month above to set the other period.</p>
+      <div class="field"><label>Loads handled</label><input name="loads" type="number" step="1" min="0" value="<%= goals.loads!=null?goals.loads:'' %>" placeholder="e.g. 15"></div>
+      <div class="field"><label>On-time delivery %</label><input name="ontime_pct" type="number" step="1" min="0" max="100" value="<%= goals.ontime_pct!=null?goals.ontime_pct:'' %>" placeholder="e.g. 95"></div>
+      <div class="field"><label>Revenue managed ($)</label><input name="revenue" type="number" step="100" min="0" value="<%= goals.revenue!=null?goals.revenue:'' %>" placeholder="e.g. 40000"></div>
+      <div class="field"><label>Hours worked</label><input name="hours" type="number" step="1" min="0" value="<%= goals.hours!=null?goals.hours:'' %>" placeholder="e.g. 40"></div>
+      <button class="btn gold" type="submit">Save targets</button>
+    </form>
+
+    <h2 style="font-size:15px;margin:22px 0 10px">HR details</h2>
+    <form class="panel" method="post" action="/admin/team/<%= person.id %>/profile">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <div class="field"><label>Job title</label><input name="title" value="<%= person.title||'' %>" placeholder="e.g. Senior Dispatcher"></div>
+      <div class="field"><label>Phone</label><input name="phone" value="<%= person.phone||'' %>" placeholder="(555) 555-5555"></div>
+      <div class="field"><label>Hired on</label><input name="hired_at" type="date" value="<%= person.hired_at?new Date(person.hired_at).toISOString().slice(0,10):'' %>"></div>
+      <button class="btn" type="submit">Save details</button>
+    </form>
+    <% } %>
+  </div>
+</div>
+
+<style>
+  .kpi .bar{margin-top:8px;height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+  .kpi .bar span{display:block;height:100%;background:var(--gold);border-radius:99px}
+  .kpi .n small{font-size:13px;color:var(--muted);font-weight:600}
+  .ts-row{display:flex;align-items:center;gap:12px;padding:8px 4px;border-bottom:1px solid var(--line-soft)}
+  .ts-row:last-child{border-bottom:0}
+  .ts-day{width:96px;font-size:13px;color:var(--muted);flex:0 0 auto}
+  .ts-bar{flex:1;height:14px;background:var(--panel-2);border-radius:6px;overflow:hidden}
+  .ts-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--gold-600),var(--gold));border-radius:6px}
+  .ts-h{width:70px;text-align:right;flex:0 0 auto;font-size:13px}
+  @media(max-width:860px){ div[style*="grid-template-columns:1.3fr"]{grid-template-columns:1fr !important} }
+</style>
+
+<%- include('partials/foot') %>

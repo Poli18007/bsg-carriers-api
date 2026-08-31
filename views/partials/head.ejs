@@ -266,6 +266,11 @@
       <a class="sb-link <%= A==='leads'?'active':'' %>" href="/admin/leads"><%- ic('inbox') %> Leads</a>
       <% } %>
 
+      <% if (has('team')) { %>
+      <div class="sb-sec">People</div>
+      <a class="sb-link <%= A==='team'?'active':'' %>" href="/admin/team"><%- ic('staff') %> Team &amp; performance</a>
+      <% } %>
+
       <div class="sb-sec">System</div>
       <% if (has('staff')) { %>
       <a class="sb-link <%= A==='users'?'active':'' %>" href="/admin/users"><%- ic('staff') %> Staff</a>

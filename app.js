@@ -33,6 +33,7 @@ const expensesRouter = require('./src/routes/expenses');
 const maintenanceRouter = require('./src/routes/maintenance');
 const reportsRouter = require('./src/routes/reports');
 const settingsRouter = require('./src/routes/settings');
+const hrRouter = require('./src/routes/hr');
 const perms = require('./src/lib/perms');
 const portalRouter = require('./src/routes/portal');
 
@@ -128,6 +129,7 @@ app.use('/admin', sessionMw, csrf, perms.guard, dvirRouter);     // DVIR inspect
 app.use('/admin', sessionMw, csrf, perms.guard, expensesRouter); // expenses
 app.use('/admin', sessionMw, csrf, perms.guard, maintenanceRouter); // fleet maintenance
 app.use('/admin', sessionMw, csrf, perms.guard, reportsRouter);  // analytics
+app.use('/admin', sessionMw, csrf, perms.guard, hrRouter);       // team: attendance, performance, targets
 app.use('/portal', sessionMw, csrf, portalRouter);
 
 // --- Brand asset ------------------------------------------------------------

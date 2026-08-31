@@ -101,6 +101,9 @@ function csrf(req, res, next) {
   // shared header renders a logout form and the nav on all admin pages).
   res.locals.csrfToken = req.session.csrf;
   res.locals.user = req.session.user || null;
+  // `?embed=1` renders a page's content without the app shell, so a board can
+  // fetch a card's detail and drop it into an overlay.
+  res.locals.embed = req.query.embed === '1';
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     // Body for urlencoded forms, query for multipart uploads (whose body isn't
     // parsed until multer runs inside the route, after this check), or a header.

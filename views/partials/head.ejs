@@ -1,3 +1,6 @@
+<% if (typeof embed !== 'undefined' && embed) { %>
+<%# embedded fragment — no shell; the host page already carries the styles %>
+<% } else { %>
 <!doctype html>
 <html lang="en">
 <head>
@@ -247,4 +250,5 @@
     <main class="<%= (typeof wide!=='undefined'&&wide)?'wide':'' %>">
 <% } else { %>
     <main>
+<% } %>
 <% } %>

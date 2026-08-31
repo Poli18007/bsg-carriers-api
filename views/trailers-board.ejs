@@ -81,7 +81,7 @@
   document.querySelectorAll('.kb-card').forEach(function(card){
     card.addEventListener('dragstart', function(e){ dragId = card.dataset.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed='move'; });
     card.addEventListener('dragend', function(){ card.classList.remove('dragging'); });
-    card.addEventListener('click', function(e){ if(card.classList.contains('dragging')) e.preventDefault(); });
+    card.addEventListener('click', function(e){ e.preventDefault(); if(card.classList.contains('dragging')) return; window.openCard(card.getAttribute('href')); });
   });
   document.querySelectorAll('.kb-list').forEach(function(list){
     list.addEventListener('dragover', function(e){ e.preventDefault(); list.classList.add('drag-over'); });
@@ -102,4 +102,5 @@
   function recount(){ document.querySelectorAll('.kb-col').forEach(function(col){ var c=col.querySelector('.kb-count'); if(c) c.textContent = col.querySelectorAll('.kb-card').length; }); }
 </script>
 
+<%- include('partials/card-modal') %>
 <%- include('partials/foot') %>

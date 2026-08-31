@@ -1,0 +1,45 @@
+<!-- Overlay a card's detail, fetched shell-less (?embed=1) into a modal. Shared
+     by the Loads and Trailers boards. -->
+<div class="card-modal" id="cardModal" aria-hidden="true">
+  <div class="cm-backdrop" data-close></div>
+  <div class="cm-panel" role="dialog" aria-modal="true" aria-label="Card detail">
+    <button class="cm-close" type="button" data-close aria-label="Close">✕</button>
+    <div class="cm-body" id="cmBody"></div>
+  </div>
+</div>
+<style>
+  .card-modal{position:fixed;inset:0;z-index:200;display:none}
+  .card-modal.open{display:block}
+  .cm-backdrop{position:absolute;inset:0;background:rgba(0,0,0,.62)}
+  .cm-panel{position:absolute;top:2.5vh;left:50%;transform:translateX(-50%);width:min(980px,95vw);max-height:95vh;
+            overflow:auto;background:var(--bg);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+            padding:14px clamp(16px,3vw,26px) 30px}
+  .cm-close{position:sticky;top:2px;float:right;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+            width:34px;height:34px;border-radius:9px;cursor:pointer;font-size:15px;z-index:5;display:flex;align-items:center;justify-content:center}
+  .cm-close:hover{border-color:var(--gold);color:var(--gold)}
+  .cm-body{clear:both}
+  /* Inside the overlay the detail's own back-link is redundant — hide it. */
+  .cm-body .page-head > a.ghost:first-child{display:none}
+  .cm-loading{padding:48px;text-align:center;color:var(--muted)}
+  @media(prefers-reduced-motion:no-preference){ .card-modal.open .cm-panel{animation:cmIn .18s ease} }
+  @keyframes cmIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
+</style>
+<script>
+(function(){
+  var modal=document.getElementById('cardModal'), body=document.getElementById('cmBody');
+  function close(){ modal.classList.remove('open'); document.body.style.overflow=''; body.innerHTML=''; }
+  window.openCard=function(url){
+    if(!url) return;
+    body.innerHTML='<div class="cm-loading">Loading…</div>';
+    modal.classList.add('open'); document.body.style.overflow='hidden';
+    var u=url + (url.indexOf('?')>=0?'&':'?') + 'embed=1';
+    fetch(u,{headers:{'X-Requested-With':'fetch'},credentials:'same-origin'})
+      .then(function(r){ if(!r.ok) throw 0; return r.text(); })
+      .then(function(html){ body.innerHTML=html; body.scrollTop=0; modal.querySelector('.cm-panel').scrollTop=0; })
+      .catch(function(){ location.href=url; }); // fall back to a full navigation
+  };
+  window.closeCard=close;
+  modal.addEventListener('click',function(e){ if(e.target.hasAttribute('data-close')) close(); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && modal.classList.contains('open')) close(); });
+})();
+</script>

@@ -58,27 +58,30 @@ function milesBetween(aLat, aLng, bLat, bLng) {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(s));
 }
-// The public Overpass instances get busy (503/504) — try a few in turn.
+// The public Overpass instances get busy (503/504) — try several in turn, and
+// give each enough time to actually finish (a too-short timeout was aborting
+// healthy-but-slow queries before they answered).
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
 async function overpass(query) {
-  let lastErr;
-  for (const url of OVERPASS_ENDPOINTS) {
-    try {
-      return await fetchJson(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(query) }, 9000);
-    } catch (e) { lastErr = e; }
-  }
-  throw lastErr || new Error('overpass unavailable');
+  // Ask every mirror at once and take the first that answers — so a slow/busy
+  // instance never holds up the response; the fastest healthy one wins.
+  const body = 'data=' + encodeURIComponent(query);
+  const attempts = OVERPASS_ENDPOINTS.map((url) =>
+    fetchJson(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }, 16000));
+  return Promise.any(attempts); // rejects (AggregateError) only if all mirrors fail
 }
 async function searchRepairs(lat, lng, radiusMeters) {
   const around = `(around:${radiusMeters},${lat},${lng})`;
-  const query = `[out:json][timeout:20];(` +
+  // Lean query — the three repair-relevant shop types only — so it completes
+  // fast even on a large radius and is far less likely to be throttled.
+  const query = `[out:json][timeout:25];(` +
     `nwr${around}[shop=car_repair];nwr${around}[shop=tyres];nwr${around}[shop=truck_repair];` +
-    `nwr${around}[shop=car_parts];nwr${around}[amenity=fuel][repair=yes];nwr${around}[craft=car_repair];` +
-    `);out center tags 90;`;
+    `);out center tags 120;`;
   const j = await overpass(query);
   const out = (j.elements || []).map((el) => {
     const t = el.tags || {};
@@ -94,8 +97,8 @@ async function searchRepairs(lat, lng, radiusMeters) {
       hours: t.opening_hours || null, lat: plat, lng: plng,
       dist: (plat != null && plng != null) ? milesBetween(lat, lng, plat, plng) : null,
     };
-    // Unnamed POIs aren't actionable in a breakdown — keep named shops only.
-  }).filter((x) => x.lat != null && x.lng != null && x.name);
+    // A breakdown needs a shop you can call — keep only named shops with a phone.
+  }).filter((x) => x.lat != null && x.lng != null && x.name && x.phone);
   out.sort((a, b) => (a.dist == null ? 1e9 : a.dist) - (b.dist == null ? 1e9 : b.dist));
   return out;
 }
@@ -105,20 +108,27 @@ router.get('/maintenance/repairs', async (req, res) => {
   const lat = parseFloat(req.query.lat), lng = parseFloat(req.query.lng);
   const radiusMi = [10, 25, 50].includes(parseInt(req.query.radius, 10)) ? parseInt(req.query.radius, 10) : 25;
   const truckOnly = req.query.truck === '1';
-  let center = null, results = null, error = null, searched = false;
+  let center = null, results = null, error = null, searched = false, truckFellBack = false;
   try {
     if (Number.isFinite(lat) && Number.isFinite(lng)) center = { lat, lng, label: 'Your current location' };
     else if (q) { center = await geocode(q); if (!center) error = "Couldn't find that location. Try “city, state”, a ZIP, or use your current location."; }
     if (center) {
       const found = await searchRepairs(center.lat, center.lng, radiusMi * 1609);
-      results = truckOnly ? found.filter((r) => r.truck) : found;
+      // Truck-capable is a preference, not a dead-end: OSM rarely tags a shop as
+      // truck-specific, so if none match we still show all repair shops (with a
+      // note) rather than leaving a broken-down driver with nothing.
+      if (truckOnly) {
+        const tk = found.filter((r) => r.truck);
+        if (tk.length) { results = tk; }
+        else { results = found; truckFellBack = found.length > 0; }
+      } else { results = found; }
       searched = true;
     }
   } catch (e) {
     console.error('[repairs] search error:', e.message, e.cause && e.cause.code);
-    error = 'The map search service is busy right now — please try again in a moment.';
+    error = 'The free map service is busy right now. Try again in a moment — and it helps to search a nearby town or ZIP (rather than a highway name) and a smaller radius.';
   }
-  res.render('repairs', { user: req.session.user, q, radiusMi, truckOnly, center, results, error, searched, csrfToken: req.csrfToken() });
+  res.render('repairs', { user: req.session.user, q, radiusMi, truckOnly, truckFellBack, center, results, error, searched, csrfToken: req.csrfToken() });
 });
 
 router.get('/maintenance', async (req, res) => {

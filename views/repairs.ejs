@@ -25,7 +25,7 @@
     <button class="btn gold" type="submit">Search</button>
     <button class="btn" type="button" id="useLoc">📍 Use my location</button>
   </div>
-  <p class="muted" style="font-size:12px;margin:10px 0 0">Live results from OpenStreetMap — no account needed. Coverage is good but not exhaustive; widen the radius if a rural stretch is thin.</p>
+  <p class="muted" style="font-size:12px;margin:10px 0 0">Live results from OpenStreetMap — no account needed. Tip: a <strong>nearby town or ZIP</strong> works better than a highway name. Coverage is good but not exhaustive; widen the radius if a rural stretch is thin, and if it says “busy” just search again.</p>
 </form>
 
 <% if (error) { %><div class="error"><%= error %></div><% } %>
@@ -35,8 +35,11 @@
     <h2 style="font-size:15px;margin:0"><%= results.length %> shop<%= results.length===1?'':'s' %> within <%= radiusMi %> mi</h2>
     <span class="muted" style="font-size:13px">near <%= center.label %></span>
   </div>
+  <% if (truckFellBack) { %>
+    <div class="panel" style="padding:12px 16px;margin-bottom:10px;border-left:3px solid var(--gold);font-size:13px">No shops are tagged truck-specific here, so we’re showing all nearby repair &amp; tyre shops — call ahead to confirm they can take a truck.</div>
+  <% } %>
   <% if (!results.length) { %>
-    <div class="panel muted" style="padding:26px;text-align:center">No shops found in this radius. Try a wider radius, or turn off “truck-capable only”.</div>
+    <div class="panel muted" style="padding:26px;text-align:center">No shops with a phone number found in this radius. Try a wider radius or a nearby town.</div>
   <% } %>
   <div class="rgrid">
     <% results.forEach(function(s){ %>

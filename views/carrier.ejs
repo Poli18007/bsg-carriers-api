@@ -31,21 +31,47 @@
   <a class="btn gold" style="margin-left:auto" href="/admin/invoices/new?carrier=<%= c.id %>">Invoice this carrier →</a>
 </form>
 
+<% function dvi(x){ if(!x) return ''; var dt=new Date(x); return isNaN(dt)?'':dt.toISOString().slice(0,10); }
+   function dsp(x){ return x? new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : ''; }
+   var DINP='background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px 9px;border-radius:8px;font:inherit'; %>
 <h2 style="font-size:16px">Documents</h2>
-<div class="panel" style="margin-bottom:18px">
-  <% if (!docs.length) { %><p class="muted" style="margin:0">No documents uploaded yet.</p><% } %>
+<div class="panel" style="margin-bottom:18px;padding:4px 20px">
+  <% if (!docs.length) { %><p class="muted" style="margin:12px 0">No documents uploaded yet.</p><% } %>
   <% docs.forEach(function(d){ %>
-    <div class="doc" style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)">
-      <div>
-        <div><a href="/admin/carriers/<%= c.id %>/documents/<%= d.id %>" target="_blank"><%= d.filename %></a></div>
-        <div class="muted" style="font-size:12px"><%= d.doc_type %> · <%= Math.round(d.size_bytes/1024) %> KB · <%= new Date(d.uploaded_at).toLocaleDateString() %></div>
+    <div style="padding:14px 0;border-bottom:1px solid var(--line-soft)">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="min-width:0">
+          <a href="/admin/carriers/<%= c.id %>/documents/<%= d.id %>" target="_blank"><%= d.filename %></a>
+          <div class="muted" style="font-size:12px"><strong><%= d.doc_type %></strong> · <%= Math.round(d.size_bytes/1024) %> KB · uploaded <%= dsp(d.uploaded_at) %></div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <% if (d.expired) { %><span class="tag needs_info">Expired <%= dsp(d.expires_at) %></span>
+          <% } else if (d.expiring) { %><span class="tag pending">Expires <%= dsp(d.expires_at) %></span>
+          <% } else if (d.expires_at) { %><span class="tag read">Valid to <%= dsp(d.expires_at) %></span>
+          <% } else { %><span class="tag read" style="opacity:.7">No expiry set</span><% } %>
+          <% if (d.renewal_requested_at) { %><span class="tag under_review">Renewal requested</span><% } %>
+          <span class="tag <%= d.review %>"><%= d.review %></span>
+        </div>
       </div>
-      <span class="tag <%= d.review %>" style="margin-left:auto"><%= d.review %></span>
-      <form method="post" action="/admin/carriers/<%= c.id %>/documents/<%= d.id %>/review" style="margin:0;display:flex;gap:6px">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button class="btn sm" name="review" value="accepted" <%= d.review==='accepted'?'disabled':'' %>>Accept</button>
-        <button class="btn sm" name="review" value="rejected" <%= d.review==='rejected'?'disabled':'' %>>Reject</button>
-      </form>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+        <form method="post" action="/admin/carriers/<%= c.id %>/documents/<%= d.id %>/review" style="margin:0;display:flex;gap:6px">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="btn sm" name="review" value="accepted" <%= d.review==='accepted'?'disabled':'' %>>Accept</button>
+          <button class="btn sm" name="review" value="rejected" <%= d.review==='rejected'?'disabled':'' %>>Reject</button>
+        </form>
+        <form method="post" action="/admin/carriers/<%= c.id %>/documents/<%= d.id %>/expiry" style="margin:0;display:flex;gap:6px;align-items:center">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label class="muted" style="font-size:12px">Expiry</label>
+          <input type="date" name="expires_at" value="<%= dvi(d.expires_at) %>" style="<%= DINP %>">
+          <button class="btn sm" type="submit">Save</button>
+        </form>
+        <% if (d.review === 'accepted') { %>
+        <form method="post" action="/admin/carriers/<%= c.id %>/documents/<%= d.id %>/rerequest" style="margin:0" onsubmit="return confirm('Ask the carrier to upload a fresh <%= d.doc_type %>? They will get an email.')">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="btn sm gold" type="submit">Request again</button>
+        </form>
+        <% } %>
+      </div>
     </div>
   <% }) %>
 </div>

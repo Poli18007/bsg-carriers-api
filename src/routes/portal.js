@@ -114,7 +114,7 @@ router.get('/', async (req, res) => {
   const carrier = await getCarrier(req.session.carrier.id);
   if (!carrier) { req.session = null; return res.redirect('/portal/login'); }
   const [docs] = await pool.query(
-    'SELECT id, doc_type, filename, size_bytes, review, uploaded_at FROM carrier_documents WHERE carrier_id = ? ORDER BY uploaded_at DESC',
+    'SELECT id, doc_type, filename, size_bytes, review, uploaded_at, expires_at, renewal_requested_at FROM carrier_documents WHERE carrier_id = ? ORDER BY uploaded_at DESC',
     [carrier.id]
   );
   // Guided-onboarding state: the current step is derived from the data, so the
@@ -122,6 +122,8 @@ router.get('/', async (req, res) => {
   const byType = {};
   docs.forEach((d) => { if (!byType[d.doc_type]) byType[d.doc_type] = d; });
   const checklist = DOC_TYPES.map((t) => ({ key: t.key, label: t.label, doc: byType[t.key] || null }));
+  // Documents BSG has asked the owner-op to renew (re-upload a current copy).
+  const renewals = checklist.filter((c) => c.doc && c.doc.renewal_requested_at).map((c) => c.label);
   const docsDone = checklist.every((c) => c.doc);
   const profileDone = !!(carrier.mc_number && carrier.dot_number && carrier.equipment);
   const approved = carrier.status === 'approved';
@@ -134,7 +136,7 @@ router.get('/', async (req, res) => {
   ];
   const doneCount = steps.filter((s) => s.state === 'done').length;
   res.render('portal/dashboard', {
-    carrier, docs, docTypes: DOC_TYPES, checklist, steps,
+    carrier, docs, docTypes: DOC_TYPES, checklist, steps, renewals,
     progress: Math.round((doneCount / steps.length) * 100),
     profileDone, docsDone, approved, inReview,
     csrfToken: req.csrfToken(), notice: req.query.notice || null, error: req.query.error || null,
@@ -175,10 +177,13 @@ router.post('/documents', (req, res) => {
       const f = req.file;
       if (!f) return res.redirect('/portal?error=' + encodeURIComponent('Please choose a file.'));
       if (!ALLOWED_MIME.has(f.mimetype)) return res.redirect('/portal?error=' + encodeURIComponent('Only PDF, JPG or PNG files are accepted.'));
-      await pool.query(
-        'INSERT INTO carrier_documents (carrier_id, doc_type, filename, mime_type, size_bytes, content) VALUES (?,?,?,?,?,?)',
+      const [ins] = await pool.query(
+        'INSERT INTO carrier_documents (carrier_id, doc_type, filename, mime_type, size_bytes, content) VALUES (?,?,?,?,?,?) RETURNING id',
         [req.session.carrier.id, docType, f.originalname.slice(0, 255), f.mimetype, f.size, f.buffer]
       );
+      // A fresh upload satisfies any renewal request for this document type.
+      await pool.query('UPDATE carrier_documents SET renewal_requested_at = NULL WHERE carrier_id = ? AND doc_type = ? AND id <> ?',
+        [req.session.carrier.id, docType, ins[0].id]);
       staffAlert('Carrier document uploaded', [
         ['Company', req.session.carrier.company_name], ['Email', req.session.carrier.email],
         ['Document', DOC_TYPES.find((t) => t.key === docType)?.label || docType], ['File', f.originalname],

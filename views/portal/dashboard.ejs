@@ -38,6 +38,12 @@
   <div class="bmsg"><%= STATUS_MSG[carrier.status] || '' %></div>
 </div>
 
+<% if (typeof renewals !== 'undefined' && renewals.length) { %>
+<div class="error" style="display:flex;align-items:flex-start;gap:10px">
+  <span>📄</span><span>BSG has asked you to upload a <strong>current copy</strong> of: <strong><%= renewals.join(', ') %></strong>. Please replace it in the Documents section below — your file stays valid until you do.</span>
+</div>
+<% } %>
+
 <% if (approved) { %>
   <a class="cta-loads" href="/portal/loads">View your loads →</a>
 <% } %>

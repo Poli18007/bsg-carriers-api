@@ -22,6 +22,7 @@
   <a class="btn" href="/admin/carriers">Clear</a>
 </form>
 
+<% if (filter.docs === 'expiring') { %><div class="notice" style="border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);display:flex;align-items:center;gap:10px">Showing carriers with documents expiring soon or expired. <a href="/admin/carriers" style="margin-left:auto">Show all</a></div><% } %>
 <div class="panel">
   <table>
     <thead><tr><th>Registered</th><th>Company</th><th>Contact</th><th>MC</th><th>Docs</th><th>Status</th></tr></thead>
@@ -33,7 +34,7 @@
           <td><strong><%= c.company_name %></strong></td>
           <td class="muted"><%= c.contact_name || '—' %><br><%= c.email %></td>
           <td class="muted"><%= c.mc_number || '—' %></td>
-          <td><%= c.doc_count %></td>
+          <td><%= c.doc_count %><% if(c.expiring_docs){ %> <span class="tag needs_info" style="font-size:10px">⚠ <%= c.expiring_docs %> exp</span><% } %></td>
           <td><span class="tag <%= c.status %>"><%= c.status.replace('_',' ') %></span></td>
         </tr>
       <% }) %>

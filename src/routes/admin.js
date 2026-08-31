@@ -66,6 +66,7 @@ router.get('/', async (req, res) => {
             (SELECT COUNT(*) FROM trailers WHERE active)::int AS trailers,
             (SELECT COUNT(*) FROM customers)::int AS customers,
             (SELECT COUNT(*) FROM submissions WHERE status='new')::int AS new_leads,
+            (SELECT COUNT(*) FROM carrier_documents WHERE expires_at IS NOT NULL AND expires_at <= CURRENT_DATE + 30)::int AS expiring_docs,
             COALESCE((SELECT SUM(il.amount) FROM invoice_lines il JOIN invoices i ON i.id=il.invoice_id WHERE i.status IN ('draft','sent'))
                    - (SELECT COALESCE(SUM(p.amount),0) FROM invoice_payments p JOIN invoices i2 ON i2.id=p.invoice_id WHERE i2.status IN ('draft','sent')),0) AS outstanding`);
   const [board] = await pool.query("SELECT id FROM boards WHERE kind='loads' LIMIT 1");
@@ -206,10 +207,13 @@ router.get('/carriers', async (req, res) => {
     const like = '%' + q + '%';
     params.push(like, like, like, like);
   }
+  const expiringOnly = req.query.docs === 'expiring';
+  if (expiringOnly) clauses.push("EXISTS (SELECT 1 FROM carrier_documents d WHERE d.carrier_id=c.id AND d.expires_at IS NOT NULL AND d.expires_at <= CURRENT_DATE + 30)");
   const where = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
   const [rows] = await pool.query(
     `SELECT c.id, c.company_name, c.contact_name, c.email, c.mc_number, c.status, c.created_at,
-            (SELECT COUNT(*) FROM carrier_documents d WHERE d.carrier_id = c.id)::int AS doc_count
+            (SELECT COUNT(*) FROM carrier_documents d WHERE d.carrier_id = c.id)::int AS doc_count,
+            (SELECT COUNT(*) FROM carrier_documents d WHERE d.carrier_id = c.id AND d.expires_at IS NOT NULL AND d.expires_at <= CURRENT_DATE + 30)::int AS expiring_docs
        FROM carriers c ${where} ORDER BY c.created_at DESC LIMIT 200`, params
   );
   const [[counts]] = await pool.query(
@@ -217,7 +221,7 @@ router.get('/carriers', async (req, res) => {
             COUNT(*) FILTER (WHERE status='pending')::int AS pending,
             COUNT(*) FILTER (WHERE status='approved')::int AS approved FROM carriers`
   );
-  res.render('carriers', { user: req.session.user, rows, counts, filter: { status, q } });
+  res.render('carriers', { user: req.session.user, rows, counts, filter: { status, q, docs: expiringOnly ? 'expiring' : '' } });
 });
 
 router.get('/carriers/:id', async (req, res) => {
@@ -225,7 +229,10 @@ router.get('/carriers/:id', async (req, res) => {
   const carrier = rows[0];
   if (!carrier) return res.status(404).send('Not found');
   const [docs] = await pool.query(
-    'SELECT id, doc_type, filename, mime_type, size_bytes, review, uploaded_at FROM carrier_documents WHERE carrier_id = ? ORDER BY uploaded_at DESC',
+    `SELECT id, doc_type, filename, mime_type, size_bytes, review, uploaded_at, expires_at, renewal_requested_at,
+            (expires_at IS NOT NULL AND expires_at < CURRENT_DATE) AS expired,
+            (expires_at IS NOT NULL AND expires_at >= CURRENT_DATE AND expires_at <= CURRENT_DATE + 30) AS expiring
+       FROM carrier_documents WHERE carrier_id = ? ORDER BY uploaded_at DESC`,
     [carrier.id]
   );
   const [drivers] = await pool.query('SELECT * FROM drivers WHERE carrier_id = ? ORDER BY active DESC, name', [carrier.id]);
@@ -248,6 +255,31 @@ router.get('/carriers/:id/documents/:docId', async (req, res) => {
 router.post('/carriers/:id/documents/:docId/review', async (req, res) => {
   const review = ['pending', 'accepted', 'rejected'].includes(req.body.review) ? req.body.review : null;
   if (review) await pool.query('UPDATE carrier_documents SET review = ? WHERE id = ? AND carrier_id = ?', [review, req.params.docId, req.params.id]);
+  res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
+});
+
+// Record / update a document's expiry date so the system can flag it before it lapses.
+router.post('/carriers/:id/documents/:docId/expiry', async (req, res) => {
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(req.body.expires_at) ? req.body.expires_at : null;
+  await pool.query('UPDATE carrier_documents SET expires_at = ?::date WHERE id = ? AND carrier_id = ?', [d, req.params.docId, req.params.id]);
+  res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
+});
+
+// Request the carrier upload a fresh copy of a document (e.g. an expiring COI):
+// flag it, and email the carrier a prompt. The doc stays valid until replaced.
+router.post('/carriers/:id/documents/:docId/rerequest', async (req, res) => {
+  const [rows] = await pool.query(
+    'UPDATE carrier_documents SET renewal_requested_at = now() WHERE id = ? AND carrier_id = ? RETURNING doc_type',
+    [req.params.docId, req.params.id]);
+  const [[c]] = await pool.query('SELECT email, company_name FROM carriers WHERE id = ?', [req.params.id]);
+  if (c && rows[0]) {
+    const label = { coi: 'Insurance certificate (COI)', authority: 'Operating authority', w9: 'W-9' }[rows[0].doc_type] || 'document';
+    carrierEmail(c.email, `Please renew your ${label} — BSG Carriers`, [
+      `Hi ${c.company_name},`,
+      `Your ${label} on file needs an updated copy. Please upload a current one in your owner-op portal.`,
+      'Portal: ' + (process.env.PORTAL_URL || 'https://bsg-carriers-api.vercel.app/portal'),
+    ]);
+  }
   res.redirect('/admin/carriers/' + encodeURIComponent(req.params.id));
 });
 

@@ -35,6 +35,7 @@ await q("DELETE FROM staff_users WHERE email LIKE '%@bsg.test'");
 if (CLEAN_ONLY) { console.log('Done (clean only).'); await client.end(); process.exit(0); }
 
 const D = '[DEMO]';
+const isoDay = (offsetDays) => new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 const colId = async (kind, name) => (await one("SELECT bc.id FROM board_columns bc JOIN boards b ON b.id=bc.board_id AND b.kind=$1 WHERE bc.name=$2 LIMIT 1", [kind, name]) || {}).id;
 const labelId = async (name) => (await one('SELECT id FROM labels WHERE name=$1', [name]) || {}).id;
 
@@ -80,6 +81,22 @@ for (const c of CARRIERS) {
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
     [c.email, hash, c.company, c.contact, c.mc, c.dot, c.equip, c.status, c.fee, D, '555-01' + (carrierIds.length + 10)]);
   carrierIds.push(row.id);
+}
+
+// --- carrier documents for the login owner-op (COI/authority/W-9) -----------
+// A tiny valid PDF stands in for the real scan; expiry dates exercise the
+// validity badges and the expiring-docs alert.
+const DOC_PDF = Buffer.from('%PDF-1.1\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF');
+const DEMO_DOCS = [
+  ['coi', 'Certificate of Insurance.pdf', 'accepted', 18],   // expiring soon
+  ['authority', 'Operating Authority (MC).pdf', 'accepted', -6], // expired
+  ['w9', 'W-9.pdf', 'accepted', null],                        // no expiry
+];
+for (const [type, name, review, exp] of DEMO_DOCS) {
+  await q(
+    `INSERT INTO carrier_documents (carrier_id, doc_type, filename, mime_type, size_bytes, content, review, expires_at)
+     VALUES ($1,$2,$3,'application/pdf',$4,$5,$6,$7::date)`,
+    [carrierIds[0], type, name, DOC_PDF.length, DOC_PDF, review, exp == null ? null : isoDay(exp)]);
 }
 
 // --- drivers (2 per approved carrier) ---------------------------------------
@@ -209,7 +226,6 @@ for (let i = 0; i < EXP.length; i++) {
 // --- maintenance ------------------------------------------------------------
 const MAINT = [['service', 'Oil change + DOT inspection', 'Speedco', 320, 'completed', 30], ['repair', 'Alternator replacement', 'Cascade Diesel', 890, 'completed', null],
   ['tire', 'Drive tires x4', 'Les Schwab', 1450, 'completed', 60], ['inspection', 'Annual DOT inspection', 'Fleet Services', 180, 'scheduled', 7]];
-const isoDay = (offsetDays) => new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
 for (let i = 0; i < MAINT.length; i++) {
   const [kind, desc, vendor, cost, status, dueIn] = MAINT[i];
   await q(`INSERT INTO maintenance_records (truck_id,kind,description,vendor,cost,odometer,service_date,next_due_date,status)

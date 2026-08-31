@@ -94,6 +94,11 @@ CREATE TABLE IF NOT EXISTS carrier_documents (
   uploaded_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_doc_carrier ON carrier_documents (carrier_id, doc_type);
+-- Validity tracking: an expiry date staff record per document, and a timestamp
+-- for when a renewal was requested (so the carrier is prompted to re-upload).
+ALTER TABLE carrier_documents ADD COLUMN IF NOT EXISTS expires_at DATE;
+ALTER TABLE carrier_documents ADD COLUMN IF NOT EXISTS renewal_requested_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_doc_expires ON carrier_documents (expires_at) WHERE expires_at IS NOT NULL;
 
 -- ===========================================================================
 -- Phase 3 — Dispatch operations (loads, brokers, board)

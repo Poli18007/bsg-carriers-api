@@ -12,6 +12,12 @@
 </div>
 <p class="sub">Welcome back, <%= user.name.split(' ')[0] %>. Here's where dispatch stands today.</p>
 
+<% if (fleet.expiring_docs > 0) { %>
+<a href="/admin/carriers?docs=expiring" class="notice" style="display:flex;align-items:center;gap:10px;text-decoration:none;border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)">
+  📄 <span><strong><%= fleet.expiring_docs %></strong> carrier document<%= fleet.expiring_docs>1?'s':'' %> expiring soon or expired — review and request renewals →</span>
+</a>
+<% } %>
+
 <% if (user.role === 'admin' && typeof deleteRequests !== 'undefined' && deleteRequests > 0) { %>
 <a href="/admin/delete-requests" class="error" style="display:flex;align-items:center;gap:10px;text-decoration:none">
   🗑️ <span><strong><%= deleteRequests %></strong> load deletion request<%= deleteRequests>1?'s':'' %> waiting for your review →</span>

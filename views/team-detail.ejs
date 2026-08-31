@@ -5,7 +5,20 @@
    function tm(x){ return x?new Date(x).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'—'; }
    function pct(v,g){ if(g==null||!g) return null; return Math.min(100, Math.round((Number(v||0)/Number(g))*100)); }
    var maxH = 8; daily.forEach(function(r){ if(Number(r.hours)>maxH) maxH=Number(r.hours); });
-   var base = self ? '/admin/me/performance' : ('/admin/team/'+person.id); %>
+   var base = self ? '/admin/me/performance' : ('/admin/team/'+person.id);
+   var D = scard.deltas, PC = 'vs last '+(scard.period==='week'?'wk':'mo');
+   function chip(v, unit, betterUp){
+     if(v==null) return '';
+     var t = v===0 ? 'flat' : (betterUp===null ? 'flat' : ((v>0)===betterUp ? 'up':'down'));
+     var arrow = v>0?'▲ ':(v<0?'▼ ':'');
+     var mag = v===0 ? '±0' : (unit==='$' ? '$'+Math.abs(Math.round(v)).toLocaleString() : Math.abs(v)+unit);
+     return '<div class="chip d-'+t+'">'+arrow+mag+' <span class="chip-c">'+PC+'</span></div>';
+   }
+   function sparkSvg(vals, color){
+     var w=190,h=38, max=Math.max.apply(null,vals.concat([1])), n=vals.length;
+     var pts = vals.map(function(v,i){ var x=n<2?0:(i/(n-1))*w; var y=h-3-(v/max)*(h-8); return x.toFixed(1)+','+y.toFixed(1); }).join(' ');
+     return '<svg class="spark" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'" preserveAspectRatio="none"><polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+   } %>
 <%- include('partials/head', { title: title, active: active }) %>
 
 <div class="page-head">
@@ -28,21 +41,31 @@
 
 <h2 style="font-size:15px;margin:6px 0 10px">Scorecard — <%= scard.period==='week'?'this week':'this month' %></h2>
 <% var cards=[
-  {l:'Loads handled', v: scard.handled + (goals.loads!=null?(' <small>/ '+goals.loads+'</small>'):''), p: pct(scard.handled, goals.loads)},
-  {l:'On-time delivery', v:(scard.ontimePct==null?'—':scard.ontimePct+'%')+(goals.ontime_pct!=null?(' <small>/ '+goals.ontime_pct+'%</small>'):''), p: scard.ontimePct==null?null:pct(scard.ontimePct, goals.ontime_pct)}
+  {l:'Loads handled', v: scard.handled + (goals.loads!=null?(' <small>/ '+goals.loads+'</small>'):''), p: pct(scard.handled, goals.loads), d: chip(D.loads,'',true)},
+  {l:'On-time delivery', v:(scard.ontimePct==null?'—':scard.ontimePct+'%')+(goals.ontime_pct!=null?(' <small>/ '+goals.ontime_pct+'%</small>'):''), p: scard.ontimePct==null?null:pct(scard.ontimePct, goals.ontime_pct), d: chip(D.ontimePct,' pts',true)}
 ];
-if (showMoney) cards.push({l:'Revenue managed', v: money(scard.revenue)+(goals.revenue!=null?(' <small>/ '+money(goals.revenue)+'</small>'):''), p: pct(scard.revenue, goals.revenue)});
-cards.push({l:'Avg response', v:(scard.respHrs==null?'—':scard.respHrs+' h'), p:null});
-cards.push({l:'Hours worked', v: scard.hours+' h'+(goals.hours!=null?(' <small>/ '+goals.hours+'h</small>'):''), p: pct(scard.hours, goals.hours)});
-cards.push({l:'Sign-ins', v:String(scard.sessions), p:null}); %>
+if (showMoney) cards.push({l:'Revenue managed', v: money(scard.revenue)+(goals.revenue!=null?(' <small>/ '+money(goals.revenue)+'</small>'):''), p: pct(scard.revenue, goals.revenue), d: chip(D.revenue,'$',true)});
+cards.push({l:'Avg response', v:(scard.respHrs==null?'—':scard.respHrs+' h'), p:null, d:''});
+cards.push({l:'Hours worked', v: scard.hours+' h'+(goals.hours!=null?(' <small>/ '+goals.hours+'h</small>'):''), p: pct(scard.hours, goals.hours), d: chip(D.hours,'h',null)});
+cards.push({l:'Sign-ins', v:String(scard.sessions), p:null, d:''}); %>
 <div class="kpis">
   <% cards.forEach(function(c){ %>
     <div class="kpi <%= c.p!=null && c.p>=100 ? 'accent':'' %>">
       <div class="n"><%- c.v %></div>
       <div class="l"><%= c.l %></div>
+      <% if (c.d) { %><%- c.d %><% } %>
       <% if (c.p!=null) { %><div class="bar"><span style="width:<%= c.p %>%"></span></div><% } %>
     </div>
   <% }) %>
+</div>
+
+<div class="panel" style="margin:2px 0 4px;padding:14px 18px">
+  <div style="display:flex;gap:34px;flex-wrap:wrap;align-items:center">
+    <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:700">Trend · 8 weeks</div>
+    <div><div class="muted" style="font-size:12px;margin-bottom:3px">Loads</div><%- sparkSvg(spark.map(function(s){return s.loads;}), 'var(--gold)') %></div>
+    <div><div class="muted" style="font-size:12px;margin-bottom:3px">Hours</div><%- sparkSvg(spark.map(function(s){return Number(s.hours);}), 'var(--info)') %></div>
+    <div class="muted" style="font-size:11.5px"><%= spark.length?spark[0].label:'' %> → <%= spark.length?spark[spark.length-1].label:'' %></div>
+  </div>
 </div>
 
 <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:18px;align-items:start;margin-top:8px">
@@ -108,6 +131,10 @@ cards.push({l:'Sign-ins', v:String(scard.sessions), p:null}); %>
   .kpi .bar{margin-top:8px;height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden}
   .kpi .bar span{display:block;height:100%;background:var(--gold);border-radius:99px}
   .kpi .n small{font-size:13px;color:var(--muted);font-weight:600}
+  .kpi .chip{margin-top:5px;font-size:11.5px;font-weight:700;display:flex;align-items:baseline;gap:5px}
+  .kpi .chip .chip-c{font-weight:600;color:var(--faint);font-size:10.5px;text-transform:none;letter-spacing:0}
+  .kpi .chip.d-up{color:var(--gold)} .kpi .chip.d-down{color:var(--danger)} .kpi .chip.d-flat{color:var(--muted)}
+  svg.spark{display:block;width:190px;height:38px}
   .ts-row{display:flex;align-items:center;gap:12px;padding:8px 4px;border-bottom:1px solid var(--line-soft)}
   .ts-row:last-child{border-bottom:0}
   .ts-day{width:96px;font-size:13px;color:var(--muted);flex:0 0 auto}

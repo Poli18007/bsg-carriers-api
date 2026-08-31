@@ -22,38 +22,59 @@ const showMoneyFor = (role) => role === 'admin' || role === 'manager' || role ==
 const LEAVE_KINDS = ['pto', 'sick', 'unpaid', 'other'];
 
 // --- Shared scorecard + timesheet builders ---------------------------------
-async function scorecardFor(id, period) {
-  const start = `date_trunc('${period}', now())`; // period whitelisted by caller
-  const [[loads]] = await pool.query(
+// Core metrics over an arbitrary [lo,hi) window. lo/hi are SQL expressions the
+// caller builds from a whitelisted period — never user input.
+async function coreMetrics(id, lo, hi) {
+  const [[l]] = await pool.query(
     `SELECT COUNT(*)::int AS handled, COALESCE(SUM(rate),0) AS revenue
-       FROM loads WHERE dispatcher_id=? AND created_at >= ${start}`, [id]);
-  const [[ot]] = await pool.query(
+       FROM loads WHERE dispatcher_id=? AND created_at >= ${lo} AND created_at < ${hi}`, [id]);
+  const [[o]] = await pool.query(
     `SELECT COUNT(*) FILTER (WHERE bc.category IN ('delivered','done') AND l.delivery_date IS NOT NULL)::int AS delivered,
             COUNT(*) FILTER (WHERE bc.category IN ('delivered','done') AND l.delivery_date IS NOT NULL AND l.updated_at::date <= l.delivery_date)::int AS ontime
        FROM loads l LEFT JOIN board_columns bc ON bc.id=l.column_id
-      WHERE l.dispatcher_id=? AND l.updated_at >= ${start}`, [id]);
+      WHERE l.dispatcher_id=? AND l.updated_at >= ${lo} AND l.updated_at < ${hi}`, [id]);
+  const [[h]] = await pool.query(
+    `SELECT ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(logout_at,last_seen_at)-login_at))/3600.0),0)::numeric,1) AS hours,
+            COUNT(*)::int AS sessions
+       FROM staff_sessions WHERE staff_id=? AND login_at >= ${lo} AND login_at < ${hi}`, [id]);
+  return { handled: l.handled, revenue: Number(l.revenue), ontimePct: o.delivered ? Math.round((o.ontime / o.delivered) * 100) : null, hours: Number(h.hours), sessions: h.sessions };
+}
+async function scorecardFor(id, period) {
+  const startExpr = `date_trunc('${period}', now())`;             // period whitelisted by caller
+  const perExpr = period === 'month' ? "interval '1 month'" : "interval '7 days'";
+  // Current period-to-date vs the same elapsed span one period ago (fair compare).
+  const cur = await coreMetrics(id, startExpr, 'now()');
+  const prev = await coreMetrics(id, `${startExpr} - ${perExpr}`, `now() - ${perExpr}`);
   const [[resp]] = await pool.query(
     `SELECT ROUND(AVG(EXTRACT(EPOCH FROM (fe.first_evt - l.created_at))/3600.0)::numeric,1) AS avg_hrs
        FROM loads l JOIN (SELECT load_id, MIN(created_at) first_evt FROM load_events WHERE kind='status' GROUP BY load_id) fe ON fe.load_id=l.id
-      WHERE l.dispatcher_id=? AND l.created_at >= ${start}`, [id]);
-  const [[hrs]] = await pool.query(
-    `SELECT ROUND(COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(logout_at,last_seen_at)-login_at))/3600.0),0)::numeric,1) AS hours,
-            COUNT(*)::int AS sessions
-       FROM staff_sessions WHERE staff_id=? AND login_at >= ${start}`, [id]);
+      WHERE l.dispatcher_id=? AND l.created_at >= ${startExpr}`, [id]);
   const [trows] = await pool.query('SELECT metric, period, target FROM staff_targets WHERE staff_id=?', [id]);
   const targets = {};
   trows.forEach((t) => { targets[t.metric + ':' + t.period] = Number(t.target); });
   const tperiod = period === 'month' ? 'monthly' : 'weekly';
   const pick = (m) => (targets[m + ':' + tperiod] == null ? null : targets[m + ':' + tperiod]);
   const goals = { loads: pick('loads'), ontime_pct: pick('ontime_pct'), revenue: pick('revenue'), hours: pick('hours') };
-  const scard = {
-    period,
-    handled: loads.handled, revenue: Number(loads.revenue),
-    delivered: ot.delivered, ontimePct: ot.delivered ? Math.round((ot.ontime / ot.delivered) * 100) : null,
-    respHrs: resp.avg_hrs == null ? null : Number(resp.avg_hrs),
-    hours: Number(hrs.hours), sessions: hrs.sessions,
+  const deltas = {
+    loads: cur.handled - prev.handled,
+    revenue: cur.revenue - prev.revenue,
+    hours: Number((cur.hours - prev.hours).toFixed(1)),
+    ontimePct: (cur.ontimePct == null || prev.ontimePct == null) ? null : cur.ontimePct - prev.ontimePct,
   };
-  return { scard, goals, tperiod };
+  // 8-week sparkline series (loads + hours), zero-filled via generate_series.
+  const [spark] = await pool.query(
+    `WITH weeks AS (SELECT generate_series(date_trunc('week',now()) - interval '7 weeks', date_trunc('week',now()), interval '1 week') wk)
+       SELECT to_char(w.wk,'MM/DD') AS label,
+         (SELECT COUNT(*) FROM loads l WHERE l.dispatcher_id=? AND date_trunc('week',l.created_at)=w.wk)::int AS loads,
+         ROUND(COALESCE((SELECT SUM(EXTRACT(EPOCH FROM (COALESCE(s.logout_at,s.last_seen_at)-s.login_at))/3600.0)
+                           FROM staff_sessions s WHERE s.staff_id=? AND date_trunc('week',s.login_at)=w.wk),0)::numeric,1) AS hours
+       FROM weeks w ORDER BY w.wk`, [id, id]);
+  const scard = {
+    period, handled: cur.handled, revenue: cur.revenue, ontimePct: cur.ontimePct,
+    respHrs: resp.avg_hrs == null ? null : Number(resp.avg_hrs),
+    hours: cur.hours, sessions: cur.sessions, deltas,
+  };
+  return { scard, goals, tperiod, spark };
 }
 async function timesheetFor(id) {
   const [daily] = await pool.query(
@@ -93,10 +114,10 @@ router.get('/team/:id', async (req, res) => {
     const person = urows[0];
     if (!person) return res.status(404).send('Not found');
     const period = req.query.period === 'month' ? 'month' : 'week';
-    const { scard, goals, tperiod } = await scorecardFor(id, period);
+    const { scard, goals, tperiod, spark } = await scorecardFor(id, period);
     const { daily, sessions } = await timesheetFor(id);
     res.render('team-detail', {
-      user: req.session.user, person, scard, goals, tperiod, daily, sessions,
+      user: req.session.user, person, scard, goals, tperiod, spark, daily, sessions,
       canEdit: canEdit(req.session.user.role), showMoney: true, self: false,
       csrfToken: req.csrfToken(), msg: req.query.msg || null,
     });
@@ -110,10 +131,10 @@ router.get('/me/performance', async (req, res) => {
     const [urows] = await pool.query('SELECT id, name, email, role, title, phone, hired_at, active FROM staff_users WHERE id=? LIMIT 1', [id]);
     const person = urows[0];
     const period = req.query.period === 'month' ? 'month' : 'week';
-    const { scard, goals, tperiod } = await scorecardFor(id, period);
+    const { scard, goals, tperiod, spark } = await scorecardFor(id, period);
     const { daily, sessions } = await timesheetFor(id);
     res.render('team-detail', {
-      user: req.session.user, person, scard, goals, tperiod, daily, sessions,
+      user: req.session.user, person, scard, goals, tperiod, spark, daily, sessions,
       canEdit: false, showMoney: showMoneyFor(req.session.user.role), self: true,
       csrfToken: req.csrfToken(), msg: req.query.msg || null,
     });

@@ -31,6 +31,96 @@ async function pickers() {
   return { trucks, trailers };
 }
 
+// --- "Search for repairs": live, keyless roadside shop search via OpenStreetMap
+// (Nominatim for geocoding, Overpass for nearby POIs). No API key or billing.
+const OSM_UA = 'BSG-Carriers-Dispatch/1.0 (https://bsgcarriers.com; info@bsgcarriers.com)';
+async function fetchJson(url, opts = {}, ms = 15000) {
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), ms);
+  try {
+    const r = await fetch(url, { ...opts, signal: ac.signal, headers: { 'User-Agent': OSM_UA, Accept: 'application/json', ...(opts.headers || {}) } });
+    if (!r.ok) throw new Error('http ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+async function geocode(q) {
+  // Bias to the US first (so "Ontario, CA" is California, not Canada), then fall
+  // back to a global lookup for cross-border runs (type "…, Canada" / a city).
+  const j = await fetchJson('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=us&q=' + encodeURIComponent(q), {}, 8000);
+  if (Array.isArray(j) && j.length) return { lat: +j[0].lat, lng: +j[0].lon, label: j[0].display_name };
+  const j2 = await fetchJson('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=' + encodeURIComponent(q), {}, 8000);
+  if (!Array.isArray(j2) || !j2.length) return null;
+  return { lat: +j2[0].lat, lng: +j2[0].lon, label: j2[0].display_name };
+}
+function milesBetween(aLat, aLng, bLat, bLng) {
+  const R = 3958.8, rad = Math.PI / 180;
+  const dLat = (bLat - aLat) * rad, dLng = (bLng - aLng) * rad;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(aLat * rad) * Math.cos(bLat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+// The public Overpass instances get busy (503/504) — try a few in turn.
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+];
+async function overpass(query) {
+  let lastErr;
+  for (const url of OVERPASS_ENDPOINTS) {
+    try {
+      return await fetchJson(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'data=' + encodeURIComponent(query) }, 9000);
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('overpass unavailable');
+}
+async function searchRepairs(lat, lng, radiusMeters) {
+  const around = `(around:${radiusMeters},${lat},${lng})`;
+  const query = `[out:json][timeout:20];(` +
+    `nwr${around}[shop=car_repair];nwr${around}[shop=tyres];nwr${around}[shop=truck_repair];` +
+    `nwr${around}[shop=car_parts];nwr${around}[amenity=fuel][repair=yes];nwr${around}[craft=car_repair];` +
+    `);out center tags 90;`;
+  const j = await overpass(query);
+  const out = (j.elements || []).map((el) => {
+    const t = el.tags || {};
+    const plat = el.lat != null ? el.lat : (el.center && el.center.lat);
+    const plng = el.lon != null ? el.lon : (el.center && el.center.lon);
+    const truck = t.shop === 'truck_repair' || t.hgv === 'yes' || t['service:vehicle:truck'] === 'yes' || /\b(truck|diesel|semi|hgv|lorry|fleet)\b/i.test(t.name || '');
+    const cat = t.shop === 'tyres' ? 'Tyre shop' : (t.shop === 'truck_repair' ? 'Truck repair' : (t.shop === 'car_parts' ? 'Parts / repair' : 'Mechanic'));
+    return {
+      name: t.name || null, cat, truck,
+      addr: [t['addr:housenumber'], t['addr:street'], t['addr:city'], t['addr:state']].filter(Boolean).join(' ') || null,
+      phone: t.phone || t['contact:phone'] || t['contact:mobile'] || null,
+      website: t.website || t['contact:website'] || null,
+      hours: t.opening_hours || null, lat: plat, lng: plng,
+      dist: (plat != null && plng != null) ? milesBetween(lat, lng, plat, plng) : null,
+    };
+    // Unnamed POIs aren't actionable in a breakdown — keep named shops only.
+  }).filter((x) => x.lat != null && x.lng != null && x.name);
+  out.sort((a, b) => (a.dist == null ? 1e9 : a.dist) - (b.dist == null ? 1e9 : b.dist));
+  return out;
+}
+
+router.get('/maintenance/repairs', async (req, res) => {
+  const q = (req.query.q || '').toString().trim().slice(0, 200);
+  const lat = parseFloat(req.query.lat), lng = parseFloat(req.query.lng);
+  const radiusMi = [10, 25, 50].includes(parseInt(req.query.radius, 10)) ? parseInt(req.query.radius, 10) : 25;
+  const truckOnly = req.query.truck === '1';
+  let center = null, results = null, error = null, searched = false;
+  try {
+    if (Number.isFinite(lat) && Number.isFinite(lng)) center = { lat, lng, label: 'Your current location' };
+    else if (q) { center = await geocode(q); if (!center) error = "Couldn't find that location. Try “city, state”, a ZIP, or use your current location."; }
+    if (center) {
+      const found = await searchRepairs(center.lat, center.lng, radiusMi * 1609);
+      results = truckOnly ? found.filter((r) => r.truck) : found;
+      searched = true;
+    }
+  } catch (e) {
+    console.error('[repairs] search error:', e.message, e.cause && e.cause.code);
+    error = 'The map search service is busy right now — please try again in a moment.';
+  }
+  res.render('repairs', { user: req.session.user, q, radiusMi, truckOnly, center, results, error, searched, csrfToken: req.csrfToken() });
+});
+
 router.get('/maintenance', async (req, res) => {
   const status = STATUSES.includes(req.query.status) ? req.query.status : '';
   const where = status ? 'WHERE m.status = ?' : '';

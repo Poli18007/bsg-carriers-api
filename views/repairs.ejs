@@ -1,0 +1,86 @@
+<% var title='Search for repairs — BSG Carriers'; var active='maintenance';
+   function mi(d){ return d==null?'':(d<10?d.toFixed(1):Math.round(d))+' mi'; } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/maintenance">← Maintenance</a>
+  <h1 style="margin-left:4px">Search for repairs</h1>
+</div>
+<p class="sub">Broken down or need a tyre? Enter where the truck is and find nearby truck repair, tyre and mechanic shops with their contact details.</p>
+
+<form method="get" action="/admin/maintenance/repairs" class="panel" style="padding:16px 20px;margin-bottom:18px">
+  <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+    <div class="field" style="margin:0;flex:1;min-width:240px">
+      <label>Breakdown / repair location</label>
+      <input name="q" value="<%= q %>" placeholder="e.g. I-80 &amp; Elko, NV  ·  Ontario, CA  ·  91761" autofocus>
+    </div>
+    <div class="field" style="margin:0">
+      <label>Within</label>
+      <select name="radius"><% [10,25,50].forEach(function(r){ %><option value="<%= r %>" <%= radiusMi===r?'selected':'' %>><%= r %> mi</option><% }) %></select>
+    </div>
+    <label class="field" style="margin:0;display:flex;flex-direction:column;gap:5px">
+      <span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Truck-capable</span>
+      <span style="display:flex;align-items:center;gap:7px;height:40px"><input type="checkbox" name="truck" value="1" <%= truckOnly?'checked':'' %> style="width:16px;height:16px;accent-color:var(--gold)"> only</span>
+    </label>
+    <button class="btn gold" type="submit">Search</button>
+    <button class="btn" type="button" id="useLoc">📍 Use my location</button>
+  </div>
+  <p class="muted" style="font-size:12px;margin:10px 0 0">Live results from OpenStreetMap — no account needed. Coverage is good but not exhaustive; widen the radius if a rural stretch is thin.</p>
+</form>
+
+<% if (error) { %><div class="error"><%= error %></div><% } %>
+
+<% if (searched && center) { %>
+  <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+    <h2 style="font-size:15px;margin:0"><%= results.length %> shop<%= results.length===1?'':'s' %> within <%= radiusMi %> mi</h2>
+    <span class="muted" style="font-size:13px">near <%= center.label %></span>
+  </div>
+  <% if (!results.length) { %>
+    <div class="panel muted" style="padding:26px;text-align:center">No shops found in this radius. Try a wider radius, or turn off “truck-capable only”.</div>
+  <% } %>
+  <div class="rgrid">
+    <% results.forEach(function(s){ %>
+      <div class="rcard">
+        <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+          <h4 style="margin:0;flex:1;min-width:0"><%= s.name %></h4>
+          <% if (s.dist!=null) { %><span class="muted" style="font-size:12px;white-space:nowrap"><%= mi(s.dist) %></span><% } %>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag read"><%= s.cat %></span>
+          <% if (s.truck) { %><span class="tag booked">🚛 Truck-capable</span><% } %>
+        </div>
+        <% if (s.addr) { %><div class="muted" style="font-size:13px"><%= s.addr %></div><% } %>
+        <% if (s.hours) { %><div class="muted" style="font-size:12px">Hours: <%= s.hours %></div><% } %>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px">
+          <% if (s.phone) { %><a class="btn sm gold" href="tel:<%= s.phone.replace(/[^0-9+]/g,'') %>">📞 <%= s.phone %></a><% } else { %><span class="muted" style="font-size:12px;align-self:center">No phone listed</span><% } %>
+          <% if (s.website) { %><a class="btn sm" href="<%= s.website %>" target="_blank" rel="noopener">Website</a><% } %>
+          <a class="btn sm" href="https://www.google.com/maps/dir/?api=1&destination=<%= s.lat %>,<%= s.lng %>" target="_blank" rel="noopener">Directions</a>
+        </div>
+      </div>
+    <% }) %>
+  </div>
+  <p class="muted" style="font-size:11px;margin-top:16px">Data © OpenStreetMap contributors.</p>
+<% } %>
+
+<style>
+  .rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+  .rcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+         display:flex;flex-direction:column;gap:8px;box-shadow:var(--shadow)}
+  .rcard h4{margin:0;font-size:15px;color:var(--heading);line-height:1.25}
+</style>
+
+<script>
+  document.getElementById('useLoc').addEventListener('click', function(){
+    if(!navigator.geolocation){ alert('Location is not available on this device.'); return; }
+    var btn=this; btn.disabled=true; btn.textContent='📍 Locating…';
+    navigator.geolocation.getCurrentPosition(function(pos){
+      var p=new URLSearchParams(location.search);
+      p.set('lat', pos.coords.latitude.toFixed(6)); p.set('lng', pos.coords.longitude.toFixed(6));
+      p.delete('q');
+      if(!p.get('radius')) p.set('radius','<%= radiusMi %>');
+      location.search = p.toString();
+    }, function(){ btn.disabled=false; btn.textContent='📍 Use my location'; alert('Could not get your location. Type an address instead.'); }, {enableHighAccuracy:true,timeout:10000});
+  });
+</script>
+
+<%- include('partials/foot') %>

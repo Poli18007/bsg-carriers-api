@@ -9,6 +9,7 @@ const { pool } = require('../db');
 const { verifyLogin, requireLogin, requireRole, sessionUser, hashPassword, findByEmail } = require('../lib/auth');
 const { carrierEmail } = require('../lib/notify');
 const perms = require('../lib/perms');
+const sla = require('../lib/sla');
 
 const router = express.Router();
 
@@ -93,7 +94,9 @@ router.get('/', async (req, res) => {
   const [activity] = await pool.query(
     `SELECT e.body, e.kind, e.created_at, e.staff_email, l.id AS load_id, l.ref
        FROM load_events e JOIN loads l ON l.id=e.load_id ORDER BY e.created_at DESC LIMIT 8`);
-  res.render('home', { user: req.session.user, loadCounts, carrierCounts, fleet, columns, recentLoads, activity });
+  let slaBreaches = 0;
+  try { slaBreaches = await sla.breachCount(); } catch (_) { slaBreaches = 0; }
+  res.render('home', { user: req.session.user, loadCounts, carrierCounts, fleet, columns, recentLoads, activity, slaBreaches });
 });
 
 // Dispatcher home: operational view only — no revenue, no outstanding invoices,

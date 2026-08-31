@@ -10,6 +10,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { requireLogin } = require('../lib/auth');
+const sla = require('../lib/sla');
 
 const router = express.Router();
 router.use(requireLogin);
@@ -236,7 +237,8 @@ router.get('/sla', async (req, res) => {
       checkcall: { ...cc, label: 'Check-call cadence', desc: `In-transit loads with a check-call in the last ${hrsOf('checkcall', 8)}h` },
       deliver_update: { ...dv, label: 'Delivered on time', desc: 'Marked delivered by the delivery date' },
     };
-    res.render('sla', { user: req.session.user, rules, compliance, canEdit: canEdit(req.session.user.role), csrfToken: req.csrfToken(), msg: req.query.msg || null });
+    const live = await sla.breaches();
+    res.render('sla', { user: req.session.user, rules, compliance, live, canEdit: canEdit(req.session.user.role), csrfToken: req.csrfToken(), msg: req.query.msg || null });
   } catch (e) { console.error('[hr sla] error:', e.message); res.status(500).send('Could not load SLAs.'); }
 });
 router.post('/sla/:id', async (req, res) => {

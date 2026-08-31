@@ -18,6 +18,12 @@
 </a>
 <% } %>
 
+<% if (typeof slaBreaches !== 'undefined' && slaBreaches > 0) { %>
+<a href="/admin/sla" class="error" style="display:flex;align-items:center;gap:10px;text-decoration:none">
+  ⚠️ <span><strong><%= slaBreaches %></strong> load<%= slaBreaches>1?'s':'' %> breaching an SLA right now — review and act →</span>
+</a>
+<% } %>
+
 <% if (user.role === 'admin' && typeof deleteRequests !== 'undefined' && deleteRequests > 0) { %>
 <a href="/admin/delete-requests" class="error" style="display:flex;align-items:center;gap:10px;text-decoration:none">
   🗑️ <span><strong><%= deleteRequests %></strong> load deletion request<%= deleteRequests>1?'s':'' %> waiting for your review →</span>

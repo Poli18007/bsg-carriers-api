@@ -40,11 +40,36 @@
   :root{
     --bg:#0d0e11; --sidebar:#121319; --panel:#16181e; --panel-2:#1c1e26; --raise:#20222b;
     --line:#262833; --line-soft:#1e202a;
-    --gold:#DCB555; --gold-600:#c39f43; --gold-soft:rgba(220,181,85,.14);
+    --gold:#DCB555; --gold-600:#c39f43; --gold-soft:rgba(220,181,85,.14); --gold-btn:#DCB555;
     --text:#e8e9ee; --heading:#f4f5f8; --muted:#8a8c99; --faint:#63656f;
     --danger:#e05e5e; --ok:#DCB555; --info:#7fb0e0; --warn:#e0b060; --purple:#b0a0e0;
     --radius:12px; --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.22);
   }
+  /* ---- Light (white) theme ------------------------------------------------ */
+  :root[data-theme="light"]{
+    --bg:#f4f5f7; --sidebar:#ffffff; --panel:#ffffff; --panel-2:#f1f2f5; --raise:#e9ebef;
+    --line:#e4e6ea; --line-soft:#eceef1;
+    --gold:#8a6712; --gold-600:#c39f43; --gold-soft:rgba(200,150,30,.15); --gold-btn:#DCB555;
+    --text:#282b33; --heading:#14161c; --muted:#5e626d; --faint:#8b8f9a;
+    --danger:#c0392b; --ok:#8a6712; --info:#2f6fb0; --warn:#b07d24; --purple:#6a5ac0;
+    --shadow:0 1px 2px rgba(20,22,30,.05),0 6px 18px rgba(20,22,30,.07);
+  }
+  /* Status pills are hand-tuned for the dark ground — retint for light so the
+     coloured text keeps enough contrast on white. */
+  :root[data-theme="light"] .notice{color:#6f520e}
+  :root[data-theme="light"] .error{background:rgba(192,57,43,.08);border-color:var(--danger);color:#9c261b}
+  :root[data-theme="light"] .tag.new,:root[data-theme="light"] .tag.onboarding,
+  :root[data-theme="light"] .tag.approved,:root[data-theme="light"] .tag.accepted,
+  :root[data-theme="light"] .tag.booked,:root[data-theme="light"] .tag.delivered,
+  :root[data-theme="light"] .tag.paid{background:rgba(200,150,30,.15);color:#7a5a10}
+  :root[data-theme="light"] .tag.contact,:root[data-theme="light"] .tag.under_review,
+  :root[data-theme="light"] .tag.dispatched,:root[data-theme="light"] .tag.in_transit,
+  :root[data-theme="light"] .tag.loaded{background:rgba(47,111,176,.13);color:#255d95}
+  :root[data-theme="light"] .tag.needs_info,:root[data-theme="light"] .tag.rejected,
+  :root[data-theme="light"] .tag.damaged,:root[data-theme="light"] .tag.cancelled{background:rgba(192,57,43,.1);color:#a3271b}
+  :root[data-theme="light"] .tag.invoiced,:root[data-theme="light"] .tag.maintenance{background:rgba(106,90,192,.13);color:#574aa6}
+  :root[data-theme="light"] .tag.read,:root[data-theme="light"] .tag.available,
+  :root[data-theme="light"] .tag.archived,:root[data-theme="light"] .tag.empty{background:#eceef1;color:#5e626d}
   *{box-sizing:border-box}
   html,body{height:100%}
   body{margin:0;background:var(--bg);color:var(--text);
@@ -104,7 +129,7 @@
        padding:8px 14px;border-radius:9px;cursor:pointer;font:inherit;font-weight:600;text-decoration:none;
        transition:border-color .12s,background .12s}
   .btn:hover{border-color:var(--gold);background:var(--panel-2)}
-  .btn.gold{background:var(--gold);border-color:var(--gold);color:#1a1400}
+  .btn.gold{background:var(--gold-btn);border-color:var(--gold-btn);color:#1a1400}
   .btn.gold:hover{background:var(--gold-600);border-color:var(--gold-600)}
   .btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
   .btn.ghost{background:transparent}
@@ -137,7 +162,7 @@
   .tag.rejected{background:#23242b;color:#9a9ba3}
   .tag.accepted{background:var(--gold-soft);color:var(--gold)}
   .tag.available{background:#23242b;color:#9a9ba3}
-  .tag.booked{background:var(--gold-soft);color:#DCB555}
+  .tag.booked{background:var(--gold-soft);color:var(--gold)}
   .tag.dispatched{background:rgba(127,176,224,.16);color:#7fb0e0}
   .tag.in_transit{background:rgba(127,176,224,.22);color:#a9cdf0}
   .tag.delivered{background:var(--gold-soft);color:var(--gold)}
@@ -187,6 +212,11 @@
     .dl dt{padding-bottom:0;border-bottom:0}
   }
 </style>
+<script>
+  // Apply the saved theme before first paint (no flash). Default is dark.
+  (function(){try{var t=localStorage.getItem('bsg-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+  function __toggleTheme(){var r=document.documentElement,n=r.getAttribute('data-theme')==='light'?'dark':'light';r.setAttribute('data-theme',n);try{localStorage.setItem('bsg-theme',n);}catch(e){}}
+</script>
 </head>
 <body>
 <% if (typeof user !== 'undefined' && user) { %>
@@ -246,7 +276,8 @@
     <div class="sb-user">
       <span class="av"><%= initials(user.name) %></span>
       <span class="nm"><b><%= user.name %></b><span><%= user.role %></span></span>
-      <form method="post" action="/admin/logout"><input type="hidden" name="_csrf" value="<%= typeof csrfToken!=='undefined'?csrfToken:'' %>"><button class="icon-btn" type="submit" title="Sign out">⏻</button></form>
+      <button class="icon-btn" type="button" title="Switch light / dark theme" aria-label="Switch light or dark theme" onclick="__toggleTheme()" style="margin-left:auto">🌓</button>
+      <form method="post" action="/admin/logout" style="margin:0"><input type="hidden" name="_csrf" value="<%= typeof csrfToken!=='undefined'?csrfToken:'' %>"><button class="icon-btn" type="submit" title="Sign out">⏻</button></form>
     </div>
   </aside>
   <div class="content">

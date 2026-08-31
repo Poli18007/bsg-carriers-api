@@ -8,8 +8,21 @@
 <link rel="icon" type="image/png" href="/brand/favicon.png">
 <link rel="apple-touch-icon" href="/brand/favicon.png">
 <style>
-  :root{--black:#0b0b0c;--panel:#15161a;--line:#26272e;--gold:#DCB555;--gold-600:#c39f43;
+  :root{--black:#0b0b0c;--panel:#15161a;--line:#26272e;--gold:#DCB555;--gold-600:#c39f43;--gold-btn:#DCB555;
     --text:#e9e9ec;--muted:#9a9ba3;--bg:#0e0f12;--danger:#e05555;--ok:#DCB555;--info:#7fb0e0;--warn:#e0b060;}
+  :root[data-theme="light"]{--black:#ffffff;--panel:#ffffff;--line:#e4e6ea;--gold:#8a6712;--gold-600:#c39f43;--gold-btn:#DCB555;
+    --text:#282b33;--muted:#5e626d;--bg:#f4f5f7;--danger:#c0392b;--ok:#8a6712;--info:#2f6fb0;--warn:#b07d24;}
+  :root[data-theme="light"] .notice{color:#6f520e}
+  :root[data-theme="light"] .error{background:rgba(192,57,43,.08);border-color:var(--danger);color:#9c261b}
+  :root[data-theme="light"] .status.pending,:root[data-theme="light"] .status.approved,
+  :root[data-theme="light"] .status.booked,:root[data-theme="light"] .status.delivered,
+  :root[data-theme="light"] .status.paid{background:rgba(200,150,30,.15);color:#7a5a10}
+  :root[data-theme="light"] .status.under_review,:root[data-theme="light"] .status.dispatched,
+  :root[data-theme="light"] .status.in_transit{background:rgba(47,111,176,.13);color:#255d95}
+  :root[data-theme="light"] .status.needs_info{background:rgba(192,57,43,.1);color:#a3271b}
+  :root[data-theme="light"] .status.invoiced{background:rgba(106,90,192,.13);color:#574aa6}
+  :root[data-theme="light"] .status.rejected,:root[data-theme="light"] .status.available,
+  :root[data-theme="light"] .status.cancelled{background:#eceef1;color:#5e626d}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
   a{color:var(--gold)}
@@ -25,7 +38,7 @@
   .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);
        padding:9px 15px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600;text-decoration:none}
   .btn:hover{border-color:var(--gold)}
-  .btn.gold{background:var(--gold);border-color:var(--gold);color:#1a1400}
+  .btn.gold{background:var(--gold-btn);border-color:var(--gold-btn);color:#1a1400}
   .btn.gold:hover{background:var(--gold-600)}
   .btn.sm{padding:6px 11px;font-size:12px}
   main{max-width:920px;margin:0 auto;padding:28px 22px 60px}
@@ -64,7 +77,13 @@
   .upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}
   .upload-row .lbl{min-width:230px;font-weight:600}
   input[type=file]{color:var(--muted);font-size:13px}
+  .icon-btn{background:none;border:1px solid var(--line);color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px}
+  .icon-btn:hover{color:var(--text);border-color:var(--gold)}
 </style>
+<script>
+  (function(){try{var t=localStorage.getItem('bsg-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+  function __toggleTheme(){var r=document.documentElement,n=r.getAttribute('data-theme')==='light'?'dark':'light';r.setAttribute('data-theme',n);try{localStorage.setItem('bsg-theme',n);}catch(e){}}
+</script>
 </head>
 <body>
 <div class="stripe"></div>
@@ -82,6 +101,7 @@
   </nav>
   <div class="who">
     <span><%= carrier.company_name %></span>
+    <button class="icon-btn" type="button" title="Switch light / dark theme" aria-label="Switch light or dark theme" onclick="__toggleTheme()">🌓</button>
     <form method="post" action="/portal/logout"><input type="hidden" name="_csrf" value="<%= typeof csrfToken!=='undefined'?csrfToken:'' %>"><button class="btn sm" type="submit">Sign out</button></form>
   </div>
 </header>

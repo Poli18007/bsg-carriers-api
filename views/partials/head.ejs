@@ -111,6 +111,10 @@
   .icon-btn{background:none;border:1px solid var(--line);color:var(--muted);width:30px;height:30px;border-radius:8px;
             cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px}
   .icon-btn:hover{color:var(--text);border-color:var(--gold)}
+  /* Logo swaps with the theme: white mark on dark, black mark on white. */
+  .logo-black{display:none}
+  :root[data-theme="light"] .logo-white{display:none}
+  :root[data-theme="light"] .logo-black{display:inline-block}
 
   .content{flex:1;min-width:0;display:flex;flex-direction:column}
   .sb-toggle{display:none}
@@ -224,7 +228,8 @@
   <div class="sb-scrim" onclick="document.body.classList.remove('sb-open')"></div>
   <aside class="sidebar">
     <div class="sb-brand">
-      <img src="/brand/logo.png" alt="BSG Carriers" style="height:30px;width:auto">
+      <img class="logo-white" src="/brand/logo.png" alt="BSG Carriers" style="height:30px;width:auto">
+      <img class="logo-black" src="/brand/logo-dark.png" alt="BSG Carriers" style="height:30px;width:auto">
     </div>
     <% var S = (typeof sections !== 'undefined' && sections) ? sections : ['dispatch','fleet','partners','billing','reports','inbox','staff'];
        function has(x){ return S.indexOf(x) >= 0; } %>
@@ -269,7 +274,13 @@
       <% if (has('team')) { %>
       <div class="sb-sec">People</div>
       <a class="sb-link <%= A==='team'?'active':'' %>" href="/admin/team"><%- ic('staff') %> Team &amp; performance</a>
+      <a class="sb-link <%= A==='leave'?'active':'' %>" href="/admin/leave"><%- ic('clipboard') %> Leave &amp; time off<% if (typeof pendingLeave !== 'undefined' && pendingLeave > 0) { %><span class="cnt"><%= pendingLeave %></span><% } %></a>
+      <a class="sb-link <%= A==='sla'?'active':'' %>" href="/admin/sla"><%- ic('chart') %> Service levels</a>
       <% } %>
+
+      <div class="sb-sec">Me</div>
+      <a class="sb-link <%= A==='meperf'?'active':'' %>" href="/admin/me/performance"><%- ic('chart') %> My performance</a>
+      <a class="sb-link <%= A==='myleave'?'active':'' %>" href="/admin/me/leave"><%- ic('clipboard') %> My time off</a>
 
       <div class="sb-sec">System</div>
       <% if (has('staff')) { %>

@@ -36,7 +36,7 @@ const SECTION_OF = {
   carriers: 'partners', customers: 'partners', brokers: 'partners', drivers: 'partners',
   invoices: 'billing', expenses: 'billing',
   reports: 'reports',
-  team: 'team',
+  team: 'team', leave: 'team', sla: 'team',
   leads: 'inbox',
   users: 'staff',
   'delete-requests': 'staff',

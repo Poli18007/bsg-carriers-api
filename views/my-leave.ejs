@@ -1,0 +1,50 @@
+<% var title='My time off — BSG Carriers'; var active='myleave';
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'—'; }
+   function statusTag(s){ return s==='approved'?'approved':(s==='denied'?'rejected':'pending'); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/me/performance">← My performance</a>
+  <h1 style="margin-left:4px">My time off</h1>
+</div>
+<p class="sub">Request time off and track where your requests stand.</p>
+
+<% if (msg==='requested') { %><div class="notice">Request submitted — your manager will review it.</div><% } else if (msg==='err') { %><div class="error">Please check the dates and try again.</div><% } %>
+
+<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:18px;align-items:start">
+  <form class="panel" method="post" action="/admin/me/leave">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <h2 style="font-size:15px;margin:0 0 14px">Request time off</h2>
+    <div class="field"><label>Type</label>
+      <select name="kind"><% [['pto','Paid time off'],['sick','Sick'],['unpaid','Unpaid'],['other','Other']].forEach(function(o){ %><option value="<%= o[0] %>"><%= o[1] %></option><% }) %></select>
+    </div>
+    <div class="grid">
+      <div class="field"><label>From</label><input type="date" name="start_date" required></div>
+      <div class="field"><label>To</label><input type="date" name="end_date" required></div>
+    </div>
+    <div class="field"><label>Note (optional)</label><textarea name="note" rows="3" placeholder="Anything your manager should know"></textarea></div>
+    <button class="btn gold" type="submit">Submit request</button>
+  </form>
+
+  <div>
+    <h2 style="font-size:15px;margin:6px 0 10px">My requests</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Type</th><th>Dates</th><th>Days</th><th>Status</th></tr></thead>
+        <tbody>
+          <% if(!rows.length){ %><tr><td colspan="4" class="muted" style="padding:22px;text-align:center">No requests yet.</td></tr><% } %>
+          <% rows.forEach(function(r){ %>
+            <tr>
+              <td><span class="tag read"><%= r.kind %></span></td>
+              <td><%= d(r.start_date) %> – <%= d(r.end_date) %><% if(r.note){ %><br><span class="muted" style="font-size:12px"><%= r.note %></span><% } %></td>
+              <td><%= r.days %></td>
+              <td><span class="tag <%= statusTag(r.status) %>"><%= r.status %></span></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/foot') %>

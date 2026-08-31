@@ -1,7 +1,8 @@
 <% var title='Create a carrier account — BSG Carriers'; var carrier=null; var v=values||{}; %>
 <%- include('head', { title: title, carrier: carrier }) %>
 <div style="max-width:640px;margin:5vh auto 0">
-  <img src="/brand/logo.png" alt="BSG Carriers" style="height:48px;width:auto;margin-bottom:18px">
+  <img class="logo-white" src="/brand/logo.png" alt="BSG Carriers" style="height:48px;width:auto;margin-bottom:18px">
+  <img class="logo-black" src="/brand/logo-dark.png" alt="BSG Carriers" style="height:48px;width:auto;margin-bottom:18px">
   <h1>Create your carrier account</h1>
   <p class="sub">Tell us about your operation. You can upload your documents right after.</p>
   <% if (error) { %><div class="error"><%= error %></div><% } %>

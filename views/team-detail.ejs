@@ -1,19 +1,25 @@
-<% var title=(person.name)+' — Team'; var active='team';
+<% var title=(self?'My performance':person.name+' — Team'); var active=(self?'meperf':'team');
    function money(n){ return n==null?'$0':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
    function d(x){ return x?new Date(x).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}):'—'; }
    function dt(x){ return x?new Date(x).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—'; }
    function tm(x){ return x?new Date(x).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):'—'; }
    function pct(v,g){ if(g==null||!g) return null; return Math.min(100, Math.round((Number(v||0)/Number(g))*100)); }
-   var maxH = 8; daily.forEach(function(r){ if(Number(r.hours)>maxH) maxH=Number(r.hours); }); %>
+   var maxH = 8; daily.forEach(function(r){ if(Number(r.hours)>maxH) maxH=Number(r.hours); });
+   var base = self ? '/admin/me/performance' : ('/admin/team/'+person.id); %>
 <%- include('partials/head', { title: title, active: active }) %>
 
 <div class="page-head">
-  <a class="btn sm ghost" href="/admin/team">← Team</a>
-  <h1 style="margin-left:4px"><%= person.name %></h1>
-  <span class="tag <%= person.role==='admin'?'approved':(person.role==='dispatcher'?'dispatched':'booked') %>" style="align-self:center"><%= person.role %></span>
+  <% if (self) { %>
+    <h1>My performance</h1>
+  <% } else { %>
+    <a class="btn sm ghost" href="/admin/team">← Team</a>
+    <h1 style="margin-left:4px"><%= person.name %></h1>
+    <span class="tag <%= person.role==='admin'?'approved':(person.role==='dispatcher'?'dispatched':'booked') %>" style="align-self:center"><%= person.role %></span>
+  <% } %>
   <div class="spacer">
-    <a class="btn sm <%= scard.period==='week'?'gold':'' %>" href="/admin/team/<%= person.id %>?period=week">This week</a>
-    <a class="btn sm <%= scard.period==='month'?'gold':'' %>" href="/admin/team/<%= person.id %>?period=month">This month</a>
+    <% if (self) { %><a class="btn sm ghost" href="/admin/me/leave">Time off</a><% } %>
+    <a class="btn sm <%= scard.period==='week'?'gold':'' %>" href="<%= base %>?period=week">This week</a>
+    <a class="btn sm <%= scard.period==='month'?'gold':'' %>" href="<%= base %>?period=month">This month</a>
   </div>
 </div>
 <p class="sub"><%= person.title || 'Staff member' %> · <%= person.email %><% if(person.phone){ %> · <%= person.phone %><% } %><% if(person.hired_at){ %> · since <%= new Date(person.hired_at).toLocaleDateString(undefined,{month:'short',year:'numeric'}) %><% } %></p>
@@ -23,12 +29,12 @@
 <h2 style="font-size:15px;margin:6px 0 10px">Scorecard — <%= scard.period==='week'?'this week':'this month' %></h2>
 <% var cards=[
   {l:'Loads handled', v: scard.handled + (goals.loads!=null?(' <small>/ '+goals.loads+'</small>'):''), p: pct(scard.handled, goals.loads)},
-  {l:'On-time delivery', v:(scard.ontimePct==null?'—':scard.ontimePct+'%')+(goals.ontime_pct!=null?(' <small>/ '+goals.ontime_pct+'%</small>'):''), p: scard.ontimePct==null?null:pct(scard.ontimePct, goals.ontime_pct)},
-  {l:'Revenue managed', v: money(scard.revenue)+(goals.revenue!=null?(' <small>/ '+money(goals.revenue)+'</small>'):''), p: pct(scard.revenue, goals.revenue)},
-  {l:'Avg response', v:(scard.respHrs==null?'—':scard.respHrs+' h'), p:null},
-  {l:'Hours worked', v: scard.hours+' h'+(goals.hours!=null?(' <small>/ '+goals.hours+'h</small>'):''), p: pct(scard.hours, goals.hours)},
-  {l:'Sign-ins', v:String(scard.sessions), p:null}
-]; %>
+  {l:'On-time delivery', v:(scard.ontimePct==null?'—':scard.ontimePct+'%')+(goals.ontime_pct!=null?(' <small>/ '+goals.ontime_pct+'%</small>'):''), p: scard.ontimePct==null?null:pct(scard.ontimePct, goals.ontime_pct)}
+];
+if (showMoney) cards.push({l:'Revenue managed', v: money(scard.revenue)+(goals.revenue!=null?(' <small>/ '+money(goals.revenue)+'</small>'):''), p: pct(scard.revenue, goals.revenue)});
+cards.push({l:'Avg response', v:(scard.respHrs==null?'—':scard.respHrs+' h'), p:null});
+cards.push({l:'Hours worked', v: scard.hours+' h'+(goals.hours!=null?(' <small>/ '+goals.hours+'h</small>'):''), p: pct(scard.hours, goals.hours)});
+cards.push({l:'Sign-ins', v:String(scard.sessions), p:null}); %>
 <div class="kpis">
   <% cards.forEach(function(c){ %>
     <div class="kpi <%= c.p!=null && c.p>=100 ? 'accent':'' %>">

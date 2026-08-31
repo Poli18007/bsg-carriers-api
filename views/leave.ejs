@@ -1,0 +1,43 @@
+<% var title='Leave & time off — BSG Carriers'; var active='leave';
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}):'—'; }
+   function kindTag(k){ return k==='sick'?'needs_info':(k==='unpaid'?'read':(k==='other'?'read':'booked')); }
+   function statusTag(s){ return s==='approved'?'approved':(s==='denied'?'rejected':'pending'); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Leave &amp; time off</h1>
+  <div class="spacer"><a class="btn" href="/admin/me/leave">Request time off</a></div>
+</div>
+<p class="sub">Review and decide on the team's time-off requests.</p>
+
+<% if (msg==='approved') { %><div class="notice">Request approved.</div><% } else if (msg==='denied') { %><div class="notice">Request denied.</div><% } else if (msg==='err') { %><div class="error">Something went wrong — try again.</div><% } %>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Person</th><th>Type</th><th>Dates</th><th>Days</th><th>Note</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      <% if(!rows.length){ %><tr><td colspan="7" class="muted" style="padding:24px;text-align:center">No time-off requests yet.</td></tr><% } %>
+      <% rows.forEach(function(r){ %>
+        <tr>
+          <td><strong><%= r.staff_name %></strong><br><span class="muted" style="font-size:12px"><%= r.staff_role %></span></td>
+          <td><span class="tag <%= kindTag(r.kind) %>"><%= r.kind %></span></td>
+          <td><%= d(r.start_date) %> – <%= d(r.end_date) %></td>
+          <td><%= r.days %></td>
+          <td class="muted" style="max-width:240px"><%= r.note || '—' %></td>
+          <td><span class="tag <%= statusTag(r.status) %>"><%= r.status %></span><% if(r.decided_name){ %><br><span class="muted" style="font-size:11px">by <%= r.decided_name %></span><% } %></td>
+          <td style="white-space:nowrap">
+            <% if(r.status==='pending' && canEdit){ %>
+              <form method="post" action="/admin/leave/<%= r.id %>/decide" style="display:inline">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn sm gold" name="decision" value="approved">Approve</button>
+                <button class="btn sm" name="decision" value="denied">Deny</button>
+              </form>
+            <% } %>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

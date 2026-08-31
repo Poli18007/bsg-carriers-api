@@ -1,7 +1,8 @@
 <% var title = 'Sign in — BSG Carriers Admin'; var user = null; %>
 <%- include('partials/head', { title: title, user: user }) %>
 <div class="login-wrap">
-  <img src="/brand/logo.png" alt="BSG Carriers" style="height:50px;width:auto;margin-bottom:20px">
+  <img class="logo-white" src="/brand/logo.png" alt="BSG Carriers" style="height:50px;width:auto;margin-bottom:20px">
+  <img class="logo-black" src="/brand/logo-dark.png" alt="BSG Carriers" style="height:50px;width:auto;margin-bottom:20px">
   <h1>Dispatch Admin</h1>
   <p class="sub">Staff sign in</p>
   <% if (error) { %><div class="error"><%= error %></div><% } %>

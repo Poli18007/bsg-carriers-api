@@ -1,0 +1,64 @@
+<% var title='SLAs — BSG Carriers'; var active='sla';
+   function rate(o){ return o.total ? Math.round((o.ok/o.total)*100) : null; }
+   function tone(p){ return p==null?'':(p>=90?'ok':(p>=75?'warn':'bad')); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head"><h1>Service levels (SLAs)</h1></div>
+<p class="sub">How the team is tracking against its service commitments — last 30 days.</p>
+
+<% if (msg==='saved') { %><div class="notice">SLA thresholds saved.</div><% } else if (msg==='err') { %><div class="error">Couldn't save — try again.</div><% } %>
+
+<div class="slacards">
+  <% ['assign','checkcall','deliver_update'].forEach(function(k){ var c=compliance[k]; var p=rate(c); %>
+    <div class="slacard">
+      <div class="slac-top">
+        <div class="slac-pct <%= tone(p) %>"><%= p==null?'—':p+'%' %></div>
+        <div>
+          <div class="slac-l"><%= c.label %></div>
+          <div class="muted" style="font-size:12px"><%= c.desc %></div>
+        </div>
+      </div>
+      <div class="slac-bar"><span class="<%= tone(p) %>" style="width:<%= p==null?0:p %>%"></span></div>
+      <div class="muted" style="font-size:12px"><%= c.ok %> of <%= c.total %> met<%= c.total?'':' — no data yet' %></div>
+    </div>
+  <% }) %>
+</div>
+
+<h2 style="font-size:15px;margin:24px 0 10px">Rules</h2>
+<% if(canEdit){ rules.forEach(function(r){ %><form id="sla<%= r.id %>" method="post" action="/admin/sla/<%= r.id %>"><input type="hidden" name="_csrf" value="<%= csrfToken %>"></form><% }); } %>
+<div class="panel">
+  <table>
+    <thead><tr><th>Rule</th><th>Threshold (hours)</th><th>Active</th><% if(canEdit){ %><th></th><% } %></tr></thead>
+    <tbody>
+      <% rules.forEach(function(r){ %>
+        <tr>
+          <td><strong><%= r.name %></strong><br><span class="muted" style="font-size:12px"><%= r.code %></span></td>
+          <% if(canEdit){ %>
+            <td><input form="sla<%= r.id %>" name="hours" type="number" step="0.5" min="0" value="<%= r.hours %>" style="width:110px;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:8px"></td>
+            <td><input form="sla<%= r.id %>" type="checkbox" name="active" value="1" <%= r.active?'checked':'' %> style="width:16px;height:16px;accent-color:var(--gold)"></td>
+            <td><button form="sla<%= r.id %>" class="btn sm gold" type="submit">Save</button></td>
+          <% } else { %>
+            <td><%= r.hours %> h</td>
+            <td><%= r.active?'Yes':'No' %></td>
+          <% } %>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<p class="muted" style="font-size:12px;margin-top:12px">Compliance is measured from load activity (status changes, check-calls, delivery dates). Adjust a threshold and the numbers above recompute on next load.</p>
+
+<style>
+  .slacards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+  .slacard{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow)}
+  .slac-top{display:flex;align-items:center;gap:14px}
+  .slac-pct{font-size:30px;font-weight:800;color:var(--heading);letter-spacing:-1px;flex:0 0 auto}
+  .slac-pct.ok{color:var(--ok)} .slac-pct.warn{color:var(--warn)} .slac-pct.bad{color:var(--danger)}
+  .slac-l{font-weight:700;color:var(--heading)}
+  .slac-bar{height:6px;background:var(--panel-2);border-radius:99px;overflow:hidden;margin:12px 0 8px}
+  .slac-bar span{display:block;height:100%;background:var(--muted);border-radius:99px}
+  .slac-bar span.ok{background:var(--ok)} .slac-bar span.warn{background:var(--warn)} .slac-bar span.bad{background:var(--danger)}
+  .panel tr form{display:contents}
+</style>
+
+<%- include('partials/foot') %>

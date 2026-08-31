@@ -79,6 +79,9 @@
   input[type=file]{color:var(--muted);font-size:13px}
   .icon-btn{background:none;border:1px solid var(--line);color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px}
   .icon-btn:hover{color:var(--text);border-color:var(--gold)}
+  .logo-black{display:none}
+  :root[data-theme="light"] .logo-white{display:none}
+  :root[data-theme="light"] .logo-black{display:inline-block}
 </style>
 <script>
   (function(){try{var t=localStorage.getItem('bsg-theme');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
@@ -90,7 +93,8 @@
 <% if (typeof carrier !== 'undefined' && carrier) { %>
 <header class="top">
   <a href="/portal" class="brand" style="display:flex;align-items:center;gap:11px;text-decoration:none">
-    <img src="/brand/logo.png" alt="BSG Carriers" style="height:38px;width:auto">
+    <img class="logo-white" src="/brand/logo.png" alt="BSG Carriers" style="height:38px;width:auto">
+    <img class="logo-black" src="/brand/logo-dark.png" alt="BSG Carriers" style="height:38px;width:auto">
     <span class="muted" style="font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.14em;padding-left:11px;border-left:1px solid var(--line)">Owner-Op Portal</span>
   </a>
   <nav>

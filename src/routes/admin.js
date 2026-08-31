@@ -51,7 +51,10 @@ router.post('/logout', requireLogin, (req, res) => {
 router.use(requireLogin);
 
 // --- Ops dashboard (home) ---------------------------------------------------
+// Dispatchers get their own focused board — their loads, fleet and partners,
+// with no revenue/billing figures they aren't meant to see.
 router.get('/', async (req, res) => {
+  if (req.session.user.role === 'dispatcher') return dispatcherHome(req, res);
   const [[loadCounts]] = await pool.query(
     `SELECT COUNT(*)::int AS total,
             COUNT(*) FILTER (WHERE bc.category IN ('active','in_transit'))::int AS active,
@@ -81,6 +84,47 @@ router.get('/', async (req, res) => {
        FROM load_events e JOIN loads l ON l.id=e.load_id ORDER BY e.created_at DESC LIMIT 8`);
   res.render('home', { user: req.session.user, loadCounts, carrierCounts, fleet, columns, recentLoads, activity });
 });
+
+// Dispatcher home: operational view only — no revenue, no outstanding invoices,
+// no rates. Leads with "my loads" (those assigned to this dispatcher).
+async function dispatcherHome(req, res) {
+ try {
+  const me = req.session.user.id;
+  const [[loadCounts]] = await pool.query(
+    `SELECT COUNT(*) FILTER (WHERE bc.category IN ('active','in_transit'))::int AS active,
+            COUNT(*) FILTER (WHERE bc.category='in_transit')::int AS in_transit,
+            COUNT(*) FILTER (WHERE bc.category='delivered')::int AS delivered,
+            COUNT(*) FILTER (WHERE l.dispatcher_id=? AND bc.category IN ('active','in_transit'))::int AS mine
+       FROM loads l LEFT JOIN board_columns bc ON bc.id=l.column_id`, [me]);
+  const [[fleet]] = await pool.query(
+    `SELECT (SELECT COUNT(*) FROM trucks WHERE active AND in_service)::int AS trucks,
+            (SELECT COUNT(*) FROM trailers WHERE active)::int AS trailers,
+            (SELECT COUNT(*) FROM carriers)::int AS carriers,
+            (SELECT COUNT(*) FROM carriers WHERE status='pending')::int AS pending_carriers,
+            (SELECT COUNT(*) FROM submissions WHERE status='new')::int AS new_leads,
+            (SELECT COUNT(*) FROM carrier_documents WHERE expires_at IS NOT NULL AND expires_at <= CURRENT_DATE + 30)::int AS expiring_docs`);
+  const [board] = await pool.query("SELECT id FROM boards WHERE kind='loads' LIMIT 1");
+  const [columns] = await pool.query(
+    `SELECT bc.id, bc.name, bc.color, (SELECT COUNT(*) FROM loads l WHERE l.column_id=bc.id)::int AS n
+       FROM board_columns bc WHERE bc.board_id = ? ORDER BY bc.sort, bc.id`, [board[0] ? board[0].id : 0]);
+  const [myLoads] = await pool.query(
+    `SELECT l.id, l.ref, l.customer, l.origin, l.destination, l.pickup_date, l.delivery_date,
+            bc.name AS col_name, bc.color AS col_color, ca.company_name AS carrier_name, tk.number AS truck_number
+       FROM loads l
+       LEFT JOIN board_columns bc ON bc.id=l.column_id
+       LEFT JOIN carriers ca ON ca.id=l.carrier_id
+       LEFT JOIN trucks tk ON tk.id=l.truck_id
+      WHERE l.dispatcher_id=? AND (bc.category IS NULL OR bc.category NOT IN ('delivered','done'))
+      ORDER BY l.pickup_date NULLS LAST, l.updated_at DESC LIMIT 10`, [me]);
+  const [activity] = await pool.query(
+    `SELECT e.body, e.kind, e.created_at, e.staff_email, l.id AS load_id, l.ref
+       FROM load_events e JOIN loads l ON l.id=e.load_id ORDER BY e.created_at DESC LIMIT 8`);
+  res.render('dispatcher-home', { user: req.session.user, loadCounts, fleet, columns, myLoads, activity });
+ } catch (e) {
+  console.error('[dispatcher home] error:', e.message);
+  res.status(500).send('Something went wrong loading your dashboard. Please refresh.');
+ }
+}
 
 // --- Leads: list + search ---------------------------------------------------
 router.get('/leads', async (req, res) => {

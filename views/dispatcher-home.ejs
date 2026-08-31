@@ -1,0 +1,103 @@
+<% var title='Dashboard — BSG Carriers'; var active='home';
+   function when(x){ return x? new Date(x).toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : ''; }
+   function day(x){ return x? new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric'}) : '—'; } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Dispatch</h1>
+  <div class="spacer" style="display:flex;gap:8px">
+    <a class="btn ghost" href="/admin/board">Open board</a>
+    <a class="btn gold" href="/admin/loads/new">+ New load</a>
+  </div>
+</div>
+<p class="sub">Welcome back, <%= user.name.split(' ')[0] %>. Here's what's on your plate today.</p>
+
+<% if (fleet.expiring_docs > 0) { %>
+<a href="/admin/carriers?docs=expiring" class="notice" style="display:flex;align-items:center;gap:10px;text-decoration:none;border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)">
+  📄 <span><strong><%= fleet.expiring_docs %></strong> carrier document<%= fleet.expiring_docs>1?'s':'' %> expiring soon or expired — review and request renewals →</span>
+</a>
+<% } %>
+
+<div class="kpis">
+  <div class="kpi accent"><div class="n"><%= loadCounts.mine %></div><div class="l">My active loads</div></div>
+  <div class="kpi"><div class="n"><%= loadCounts.active %></div><div class="l">Active loads (all)</div></div>
+  <div class="kpi"><div class="n"><%= loadCounts.in_transit %></div><div class="l">In transit</div></div>
+  <div class="kpi"><div class="n"><%= loadCounts.delivered %></div><div class="l">Delivered</div></div>
+  <div class="kpi"><div class="n"><%= fleet.trucks %></div><div class="l">Trucks in service</div></div>
+  <div class="kpi"><div class="n"><%= fleet.trailers %></div><div class="l">Trailers</div></div>
+  <div class="kpi"><div class="n"><%= fleet.carriers %><% if(fleet.pending_carriers){ %> · <%= fleet.pending_carriers %> pending<% } %></div><div class="l">Carriers</div></div>
+  <div class="kpi"><div class="n"><%= fleet.new_leads %></div><div class="l">New leads</div></div>
+</div>
+
+<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:18px;align-items:start">
+  <div>
+    <h2 style="font-size:15px;margin:6px 0 10px">My loads</h2>
+    <div class="panel">
+      <table>
+        <thead><tr><th>Ref</th><th>Customer / Lane</th><th>Carrier / Truck</th><th>Pickup</th><th>Column</th></tr></thead>
+        <tbody>
+          <% if(!myLoads.length){ %><tr><td colspan="5" class="muted" style="padding:24px;text-align:center">No loads assigned to you yet. <a href="/admin/loads/new">Book one</a> or grab one from the <a href="/admin/board">board</a>.</td></tr><% } %>
+          <% myLoads.forEach(function(l){ %>
+            <tr class="row" onclick="location.href='/admin/loads/<%= l.id %>'">
+              <td><strong><%= l.ref||('#'+l.id) %></strong></td>
+              <td><% if(l.customer){ %><%= l.customer %><br><% } %><span class="muted"><%= l.origin||'—' %> → <%= l.destination||'—' %></span></td>
+              <td><% if(l.carrier_name){ %><%= l.carrier_name %><% } else { %><span class="muted">—</span><% } %><% if(l.truck_number){ %><br><span class="muted">Truck <%= l.truck_number %></span><% } %></td>
+              <td class="muted" style="white-space:nowrap"><%= day(l.pickup_date) %></td>
+              <td><% if(l.col_name){ %><span class="tag" style="background:<%= (l.col_color||'#888') %>26;color:<%= l.col_color||'#9a9ba3' %>"><%= l.col_name %></span><% } %></td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 style="font-size:15px;margin:22px 0 10px">Loads by column</h2>
+    <a href="/admin/board" style="text-decoration:none">
+      <div class="minicols">
+        <% columns.forEach(function(c){ %>
+          <div class="minicol">
+            <div class="mc-top"><span class="dot" style="background:<%= c.color||'#9a9ba3' %>"></span><span class="mc-n"><%= c.n %></span></div>
+            <div class="mc-name"><%= c.name %></div>
+          </div>
+        <% }) %>
+      </div>
+    </a>
+  </div>
+
+  <div>
+    <h2 style="font-size:15px;margin:6px 0 10px">Activity</h2>
+    <div class="panel" style="padding:8px 16px">
+      <% if(!activity.length){ %><p class="muted" style="padding:14px 0;margin:0">Nothing yet.</p><% } %>
+      <% activity.forEach(function(a){ %>
+        <div class="feed">
+          <span class="tag <%= a.kind==='status'?'dispatched':(a.kind==='check_call'?'booked':'read') %>"><%= a.kind.replace('_',' ') %></span>
+          <div class="feed-b">
+            <div><a href="/admin/loads/<%= a.load_id %>"><%= a.ref||('#'+a.load_id) %></a> — <%= a.body %></div>
+            <div class="muted" style="font-size:11.5px"><%= when(a.created_at) %><% if(a.staff_email){ %> · <%= a.staff_email %><% } %></div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+      <a class="btn sm" href="/admin/loads/new">+ Load</a>
+      <a class="btn sm" href="/admin/trucks/new">+ Truck</a>
+      <a class="btn sm" href="/admin/trailers/new">+ Trailer</a>
+      <a class="btn sm" href="/admin/customers/new">+ Customer</a>
+    </div>
+  </div>
+</div>
+
+<style>
+  .minicols{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+  .minicol{flex:0 0 108px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px 12px;box-shadow:var(--shadow)}
+  .minicol .mc-top{display:flex;align-items:center;justify-content:space-between}
+  .minicol .dot{width:9px;height:9px;border-radius:50%}
+  .minicol .mc-n{font-size:20px;font-weight:800;color:var(--heading)}
+  .minicol .mc-name{color:var(--muted);font-size:11.5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .feed{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+  .feed:last-child{border-bottom:0}
+  .feed .tag{height:fit-content;white-space:nowrap}
+  .feed-b{min-width:0}
+  @media(max-width:860px){ div[style*="grid-template-columns:1.4fr"]{grid-template-columns:1fr !important} }
+</style>
+
+<%- include('partials/foot') %>

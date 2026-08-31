@@ -88,9 +88,10 @@ async function searchRepairs(lat, lng, radiusMeters) {
     const plat = el.lat != null ? el.lat : (el.center && el.center.lat);
     const plng = el.lon != null ? el.lon : (el.center && el.center.lon);
     const truck = t.shop === 'truck_repair' || t.hgv === 'yes' || t['service:vehicle:truck'] === 'yes' || /\b(truck|diesel|semi|hgv|lorry|fleet)\b/i.test(t.name || '');
-    const cat = t.shop === 'tyres' ? 'Tyre shop' : (t.shop === 'truck_repair' ? 'Truck repair' : (t.shop === 'car_parts' ? 'Parts / repair' : 'Mechanic'));
+    const catKey = t.shop === 'tyres' ? 'tyre' : (t.shop === 'truck_repair' ? 'truck' : (t.shop === 'car_parts' ? 'parts' : 'mechanic'));
+    const cat = catKey === 'tyre' ? 'Tyre shop' : (catKey === 'truck' ? 'Truck repair' : (catKey === 'parts' ? 'Parts / repair' : 'Mechanic'));
     return {
-      name: t.name || null, cat, truck,
+      name: t.name || null, cat, catKey, truck,
       addr: [t['addr:housenumber'], t['addr:street'], t['addr:city'], t['addr:state']].filter(Boolean).join(' ') || null,
       phone: t.phone || t['contact:phone'] || t['contact:mobile'] || null,
       website: t.website || t['contact:website'] || null,
@@ -108,27 +109,36 @@ router.get('/maintenance/repairs', async (req, res) => {
   const lat = parseFloat(req.query.lat), lng = parseFloat(req.query.lng);
   const radiusMi = [10, 25, 50].includes(parseInt(req.query.radius, 10)) ? parseInt(req.query.radius, 10) : 25;
   const truckOnly = req.query.truck === '1';
+  const type = ['truck', 'tyre', 'mechanic'].includes(req.query.type) ? req.query.type : '';
+  const open24 = req.query.open24 === '1';
+  const sort = req.query.sort === 'truck' ? 'truck' : 'dist';
+  const is24 = (h) => !!h && /24\s*\/\s*7|24\s*hours|00:00-24:00|00:00-00:00/i.test(h);
   let center = null, results = null, error = null, searched = false, truckFellBack = false;
   try {
     if (Number.isFinite(lat) && Number.isFinite(lng)) center = { lat, lng, label: 'Your current location' };
     else if (q) { center = await geocode(q); if (!center) error = "Couldn't find that location. Try “city, state”, a ZIP, or use your current location."; }
     if (center) {
       const found = await searchRepairs(center.lat, center.lng, radiusMi * 1609);
+      let list = found;
+      if (type) list = list.filter((r) => r.catKey === type);       // shop type
+      if (open24) list = list.filter((r) => is24(r.hours));          // open around the clock
       // Truck-capable is a preference, not a dead-end: OSM rarely tags a shop as
-      // truck-specific, so if none match we still show all repair shops (with a
-      // note) rather than leaving a broken-down driver with nothing.
+      // truck-specific, so if none match we still show the rest (with a note)
+      // rather than leaving a broken-down driver with nothing.
       if (truckOnly) {
-        const tk = found.filter((r) => r.truck);
-        if (tk.length) { results = tk; }
-        else { results = found; truckFellBack = found.length > 0; }
-      } else { results = found; }
+        const tk = list.filter((r) => r.truck);
+        if (tk.length) { list = tk; }
+        else { truckFellBack = list.length > 0; }
+      }
+      if (sort === 'truck') list.sort((a, b) => (b.truck ? 1 : 0) - (a.truck ? 1 : 0) || (a.dist == null ? 1e9 : a.dist) - (b.dist == null ? 1e9 : b.dist));
+      results = list;
       searched = true;
     }
   } catch (e) {
     console.error('[repairs] search error:', e.message, e.cause && e.cause.code);
     error = 'The free map service is busy right now. Try again in a moment — and it helps to search a nearby town or ZIP (rather than a highway name) and a smaller radius.';
   }
-  res.render('repairs', { user: req.session.user, q, radiusMi, truckOnly, truckFellBack, center, results, error, searched, csrfToken: req.csrfToken() });
+  res.render('repairs', { user: req.session.user, q, radiusMi, truckOnly, truckFellBack, type, open24, sort, center, results, error, searched, csrfToken: req.csrfToken() });
 });
 
 router.get('/maintenance', async (req, res) => {

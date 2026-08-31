@@ -15,12 +15,29 @@
       <input name="q" value="<%= q %>" placeholder="e.g. I-80 &amp; Elko, NV  ·  Ontario, CA  ·  91761" autofocus>
     </div>
     <div class="field" style="margin:0">
+      <label>Type</label>
+      <select name="type">
+        <% [['','All shops'],['truck','🚛 Truck repair'],['tyre','🛞 Tyre / wheels'],['mechanic','🔧 Mechanic']].forEach(function(o){ %><option value="<%= o[0] %>" <%= type===o[0]?'selected':'' %>><%= o[1] %></option><% }) %>
+      </select>
+    </div>
+    <div class="field" style="margin:0">
       <label>Within</label>
       <select name="radius"><% [10,25,50].forEach(function(r){ %><option value="<%= r %>" <%= radiusMi===r?'selected':'' %>><%= r %> mi</option><% }) %></select>
+    </div>
+    <div class="field" style="margin:0">
+      <label>Sort</label>
+      <select name="sort">
+        <option value="dist" <%= sort==='dist'?'selected':'' %>>Nearest first</option>
+        <option value="truck" <%= sort==='truck'?'selected':'' %>>Truck-capable first</option>
+      </select>
     </div>
     <label class="field" style="margin:0;display:flex;flex-direction:column;gap:5px">
       <span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Truck-capable</span>
       <span style="display:flex;align-items:center;gap:7px;height:40px"><input type="checkbox" name="truck" value="1" <%= truckOnly?'checked':'' %> style="width:16px;height:16px;accent-color:var(--gold)"> only</span>
+    </label>
+    <label class="field" style="margin:0;display:flex;flex-direction:column;gap:5px">
+      <span style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)">Open</span>
+      <span style="display:flex;align-items:center;gap:7px;height:40px"><input type="checkbox" name="open24" value="1" <%= open24?'checked':'' %> style="width:16px;height:16px;accent-color:var(--gold)"> 24/7</span>
     </label>
     <button class="btn gold" type="submit">Search</button>
     <button class="btn" type="button" id="useLoc">📍 Use my location</button>
@@ -39,7 +56,7 @@
     <div class="panel" style="padding:12px 16px;margin-bottom:10px;border-left:3px solid var(--gold);font-size:13px">No shops are tagged truck-specific here, so we’re showing all nearby repair &amp; tyre shops — call ahead to confirm they can take a truck.</div>
   <% } %>
   <% if (!results.length) { %>
-    <div class="panel muted" style="padding:26px;text-align:center">No shops with a phone number found in this radius. Try a wider radius or a nearby town.</div>
+    <div class="panel muted" style="padding:26px;text-align:center">No shops match here. Try a wider radius, a nearby town<% if (type||open24||truckOnly) { %>, or loosen the filters (type<%= open24?', 24/7':'' %><%= truckOnly?', truck-capable':'' %>)<% } %>.</div>
   <% } %>
   <div class="rgrid">
     <% results.forEach(function(s){ %>
@@ -77,10 +94,11 @@
     if(!navigator.geolocation){ alert('Location is not available on this device.'); return; }
     var btn=this; btn.disabled=true; btn.textContent='📍 Locating…';
     navigator.geolocation.getCurrentPosition(function(pos){
-      var p=new URLSearchParams(location.search);
+      // Carry the currently-selected filters (type, radius, sort, truck, 24/7)
+      // over to the location-based search, dropping only the typed address.
+      var p=new URLSearchParams(new FormData(btn.closest('form')));
       p.set('lat', pos.coords.latitude.toFixed(6)); p.set('lng', pos.coords.longitude.toFixed(6));
       p.delete('q');
-      if(!p.get('radius')) p.set('radius','<%= radiusMi %>');
       location.search = p.toString();
     }, function(){ btn.disabled=false; btn.textContent='📍 Use my location'; alert('Could not get your location. Type an address instead.'); }, {enableHighAccuracy:true,timeout:10000});
   });

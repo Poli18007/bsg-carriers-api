@@ -5,6 +5,8 @@
 // The `viewer` role is read-only: it may open allowed sections but not POST
 // (except to sign out or change its own password).
 
+const { pool } = require('../db');
+
 // Roles offered in the Staff picker, with a one-line description.
 const ROLES = [
   { key: 'admin', label: 'Admin', blurb: 'Full access — everything, plus staff and settings.' },
@@ -36,6 +38,7 @@ const SECTION_OF = {
   reports: 'reports',
   leads: 'inbox',
   users: 'staff',
+  'delete-requests': 'staff',
 };
 
 const sectionsFor = (role) => ROLE_SECTIONS[role] || ROLE_SECTIONS.viewer;
@@ -46,12 +49,17 @@ const readOnly = (role) => role === 'viewer';
 const SELF_SERVICE = ['logout', 'settings'];
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
-function guard(req, res, next) {
+async function guard(req, res, next) {
   const user = req.session && req.session.user;
   if (user) {
     res.locals.sections = sectionsFor(user.role);
     res.locals.role = user.role;
     res.locals.readOnly = readOnly(user.role);
+    // Pending-delete-request badge for admins, fetched once per request.
+    if (user.role === 'admin' && res.locals.deleteRequests === undefined) {
+      try { const [r] = await pool.query('SELECT COUNT(*)::int AS n FROM loads WHERE delete_requested_by IS NOT NULL'); res.locals.deleteRequests = r[0].n; }
+      catch (_) { res.locals.deleteRequests = 0; }
+    }
   }
   if (!user) return next(); // requireLogin downstream handles the redirect
 

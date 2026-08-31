@@ -148,7 +148,39 @@
   <% }) %>
 </div>
 
+<!-- Delete / request deletion -->
+<% if (typeof msg !== 'undefined' && msg === 'delreq') { %><div class="notice" style="margin-top:18px">Deletion requested — an admin will review it.</div><% } %>
+
+<% if (l.delete_requested_by) { %>
+<div class="panel" style="padding:16px 20px;margin-top:18px;border-left:3px solid var(--danger)">
+  <div style="font-weight:700;color:var(--danger)">Deletion requested</div>
+  <div class="muted" style="font-size:13px;margin-top:4px">By <%= l.delete_requested_by %><% if(l.delete_requested_at){ %> · <%= when(l.delete_requested_at) %><% } %></div>
+  <% if(l.delete_reason){ %><div style="margin-top:6px">“<%= l.delete_reason %>”</div><% } %>
+  <% if (user.role === 'admin') { %>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <form method="post" action="/admin/loads/<%= l.id %>/delete" style="margin:0" onsubmit="return confirm('Permanently delete load <%= l.ref||('#'+l.id) %>? This cannot be undone.')"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm danger" type="submit">Delete load</button></form>
+    <form method="post" action="/admin/loads/<%= l.id %>/dismiss-delete" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit">Dismiss request</button></form>
+  </div>
+  <% } else { %><div class="muted" style="font-size:12px;margin-top:8px">Pending admin review.</div><% } %>
+</div>
+<% } else if (user.role === 'admin') { %>
+<form method="post" action="/admin/loads/<%= l.id %>/delete" style="margin-top:20px" onsubmit="return confirm('Permanently delete load <%= l.ref||('#'+l.id) %>? This cannot be undone.')">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm danger" type="submit">Delete load</button>
+</form>
+<% } else { %>
+<details class="delreq" style="margin-top:20px">
+  <summary class="btn sm danger">Request deletion</summary>
+  <form method="post" action="/admin/loads/<%= l.id %>/request-delete" class="panel" style="padding:14px 16px;margin-top:10px;max-width:520px">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <div class="field" style="margin:0 0 10px"><label>Why should this load be deleted?</label><input name="reason" placeholder="e.g. Duplicate of D-2411 / added by mistake" required></div>
+    <button class="btn sm gold" type="submit">Send request to admin</button>
+  </form>
+</details>
+<% } %>
+
 <style>
+  .delreq summary{display:inline-flex;list-style:none;cursor:pointer}
+  .delreq summary::-webkit-details-marker{display:none}
   .stepper{display:flex}
   .step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;text-align:center}
   .step:not(:last-child)::after{content:"";position:absolute;top:15px;left:50%;width:100%;height:2px;background:var(--line);z-index:0}

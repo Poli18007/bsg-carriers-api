@@ -7,7 +7,8 @@
 const express = require('express');
 const multer = require('multer');
 const { pool } = require('../db');
-const { requireLogin } = require('../lib/auth');
+const { requireLogin, requireRole } = require('../lib/auth');
+const { staffAlert } = require('../lib/notify');
 
 const router = express.Router();
 router.use(requireLogin);
@@ -293,7 +294,7 @@ router.get('/loads/:id', async (req, res) => {
   const [[owedRow]] = await pool.query('SELECT COALESCE(SUM(amount),0) AS acc FROM load_accessorials WHERE load_id=?', [load.id]);
   const owed = (Number(load.rate) || 0) + (Number(owedRow.acc) || 0);
   const [[inv]] = await pool.query('SELECT i.id, i.seq FROM invoice_lines il JOIN invoices i ON i.id=il.invoice_id WHERE il.load_id=? LIMIT 1', [load.id]);
-  res.render('load-detail', { user: req.session.user, load, columns, docs, accessorials, events, owed, invoice: inv || null, csrfToken: req.csrfToken() });
+  res.render('load-detail', { user: req.session.user, load, columns, docs, accessorials, events, owed, invoice: inv || null, csrfToken: req.csrfToken(), msg: req.query.msg || null });
 });
 
 // Edit form for an existing load.
@@ -323,6 +324,44 @@ router.post('/loads/:id/status', async (req, res) => {
   if (req.get('x-requested-with') === 'fetch') return res.json({ ok: true, status });
   const ref = req.get('referer') || '';
   res.redirect(ref.includes('/loads/') || ref.includes('/board') ? ref : '/admin/loads');
+});
+
+// ---- Load deletion (admin) + deletion requests (everyone else) -------------
+// Delete a load outright — for mistakes. Admin only. Cascades events /
+// accessorials / documents; invoice lines and expenses keep their history (their
+// load_id is set null).
+router.post('/loads/:id/delete', requireRole('admin'), async (req, res) => {
+  await pool.query('DELETE FROM loads WHERE id = ?', [req.params.id]);
+  const ref = req.get('referer') || '';
+  res.redirect(ref.includes('/delete-requests') ? '/admin/delete-requests' : '/admin/loads');
+});
+
+// A non-admin flags a load for deletion with a reason; admins are alerted and
+// review it from the deletion-requests queue.
+router.post('/loads/:id/request-delete', async (req, res) => {
+  const reason = clip(req.body.reason, 500);
+  const who = req.session.user.name + ' (' + req.session.user.email + ')';
+  await pool.query('UPDATE loads SET delete_requested_by=?, delete_reason=?, delete_requested_at=now() WHERE id=?', [who, reason, req.params.id]);
+  const [[l]] = await pool.query('SELECT ref FROM loads WHERE id=?', [req.params.id]);
+  staffAlert('Load deletion requested', [['Load', (l && l.ref) || ('#' + req.params.id)], ['Requested by', who], ['Reason', reason || '—']]);
+  res.redirect('/admin/loads/' + encodeURIComponent(req.params.id) + '?msg=delreq');
+});
+
+// Admin dismisses a request (keeps the load).
+router.post('/loads/:id/dismiss-delete', requireRole('admin'), async (req, res) => {
+  await pool.query('UPDATE loads SET delete_requested_by=NULL, delete_reason=NULL, delete_requested_at=NULL WHERE id=?', [req.params.id]);
+  const ref = req.get('referer') || '';
+  res.redirect(ref.includes('/delete-requests') ? '/admin/delete-requests' : '/admin/loads/' + encodeURIComponent(req.params.id));
+});
+
+// Admin queue of loads flagged for deletion.
+router.get('/delete-requests', requireRole('admin'), async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT l.id, l.ref, l.origin, l.destination, l.rate, l.delete_requested_by, l.delete_reason, l.delete_requested_at,
+            c.company_name AS carrier_name, bc.name AS col_name, bc.color AS col_color
+       FROM loads l LEFT JOIN carriers c ON c.id=l.carrier_id LEFT JOIN board_columns bc ON bc.id=l.column_id
+      WHERE l.delete_requested_by IS NOT NULL ORDER BY l.delete_requested_at DESC`);
+  res.render('delete-requests', { user: req.session.user, rows, csrfToken: req.csrfToken() });
 });
 
 // ---- Load documents --------------------------------------------------------

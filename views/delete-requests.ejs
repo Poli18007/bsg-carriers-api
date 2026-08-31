@@ -1,0 +1,36 @@
+<% var title='Delete requests — BSG Carriers'; var active='delreq';
+   function money(n){ return n==null?'—':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:0}); }
+   function when(x){ return x? new Date(x).toLocaleString() : ''; } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head"><h1>Delete requests</h1></div>
+<p class="sub">Loads a dispatcher has flagged for deletion. Review each and delete it or dismiss the request.</p>
+
+<% if (!rows.length) { %>
+  <div class="panel" style="padding:30px;text-align:center" class="muted">No pending delete requests. 🎉</div>
+<% } else { %>
+<div class="panel">
+  <table>
+    <thead><tr><th>Load</th><th>Requested by</th><th>Reason</th><th>When</th><th></th></tr></thead>
+    <tbody>
+      <% rows.forEach(function(l){ %>
+        <tr>
+          <td>
+            <a href="/admin/loads/<%= l.id %>"><strong><%= l.ref || ('#'+l.id) %></strong></a>
+            <div class="muted" style="font-size:11px"><%= l.origin || '—' %> → <%= l.destination || '—' %><% if(l.carrier_name){ %> · <%= l.carrier_name %><% } %></div>
+          </td>
+          <td class="muted"><%= l.delete_requested_by %></td>
+          <td><%= l.delete_reason || '—' %></td>
+          <td class="muted" style="white-space:nowrap"><%= when(l.delete_requested_at) %></td>
+          <td style="text-align:right;white-space:nowrap">
+            <form method="post" action="/admin/loads/<%= l.id %>/dismiss-delete" style="display:inline;margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit">Dismiss</button></form>
+            <form method="post" action="/admin/loads/<%= l.id %>/delete" style="display:inline;margin:0" onsubmit="return confirm('Permanently delete load <%= l.ref||('#'+l.id) %>?')"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm danger" type="submit">Delete</button></form>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<%- include('partials/foot') %>

@@ -476,6 +476,13 @@ CREATE TABLE IF NOT EXISTS maintenance_records (
 );
 CREATE INDEX IF NOT EXISTS idx_maint_truck ON maintenance_records (truck_id, service_date DESC);
 
+-- Load deletion requests: a non-admin can flag a load for deletion (with a
+-- reason); an admin reviews and either deletes it or dismisses the request.
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delete_requested_by  TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delete_reason        TEXT;
+ALTER TABLE loads ADD COLUMN IF NOT EXISTS delete_requested_at  TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_loads_delreq ON loads (delete_requested_at) WHERE delete_requested_by IS NOT NULL;
+
 -- Role-based access: widen the staff role set beyond admin/staff. Done as a
 -- drop+add so it re-applies cleanly on every migrate. 'staff' is kept as a
 -- legacy alias (treated as manager by the permission layer).

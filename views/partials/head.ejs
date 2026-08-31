@@ -29,6 +29,7 @@
     receipt:'<path d="M6 2h12v20l-2.5-1.5L13 22l-2.5-1.5L8 22l-2-1.5V2z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
     chart:  '<path d="M4 4v16h16"/><path d="M8 16v-5M13 16V8M18 16v-9"/>',
     gear:   '<circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>',
+    trash:  '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',
     staff: '<circle cx="9" cy="8" r="3"/><path d="M2 20c0-3 3-5 7-5s7 2 7 5"/><path d="M17 11a3 3 0 1 0-1-5.8"/><path d="M22 20c0-2.5-2-4.2-5-4.7"/>',
   };
   function ic(n){ return '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(ICONS[n]||'')+'</svg>'; }
@@ -236,7 +237,10 @@
       <% } %>
 
       <div class="sb-sec">System</div>
-      <% if (has('staff')) { %><a class="sb-link <%= A==='users'?'active':'' %>" href="/admin/users"><%- ic('staff') %> Staff</a><% } %>
+      <% if (has('staff')) { %>
+      <a class="sb-link <%= A==='users'?'active':'' %>" href="/admin/users"><%- ic('staff') %> Staff</a>
+      <a class="sb-link <%= A==='delreq'?'active':'' %>" href="/admin/delete-requests"><%- ic('trash') %> Delete requests<% if (typeof deleteRequests !== 'undefined' && deleteRequests > 0) { %><span class="cnt"><%= deleteRequests %></span><% } %></a>
+      <% } %>
       <a class="sb-link <%= A==='settings'?'active':'' %>" href="/admin/settings"><%- ic('gear') %> Settings</a>
     </nav>
     <div class="sb-user">

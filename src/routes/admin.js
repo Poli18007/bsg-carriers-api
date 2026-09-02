@@ -251,6 +251,51 @@ router.post('/users/:id/toggle', requireRole('admin'), async (req, res) => {
   res.redirect('/admin/users');
 });
 
+// Full edit of a staff member — any detail, plus an optional password reset.
+router.get('/users/:id/edit', requireRole('admin'), async (req, res) => {
+  const [rows] = await pool.query('SELECT id, email, name, role, active, title, phone, hired_at, last_login FROM staff_users WHERE id=? LIMIT 1', [req.params.id]);
+  if (!rows[0]) return res.status(404).send('Not found');
+  res.render('user-edit', { user: req.session.user, u: rows[0], roles: perms.ROLES, csrfToken: req.csrfToken(), error: req.query.error || null });
+});
+
+router.post('/users/:id', requireRole('admin'), async (req, res) => {
+  const id = Number(req.params.id);
+  const b = req.body || {};
+  const isSelf = id === req.session.user.id;
+  const email = String(b.email || '').trim().toLowerCase();
+  const name = String(b.name || '').trim().slice(0, 160);
+  const clip = (v, n) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, n) : null);
+  const dnorm = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+  const back = (msg) => res.redirect('/admin/users/' + id + '/edit?error=' + encodeURIComponent(msg));
+  try {
+    if (!name || !email) return back('Name and email are required.');
+    const existing = await findByEmail(email);
+    if (existing && Number(existing.id) !== id) return back('That email is already used by another account.');
+    const pw = String(b.password || '');
+    if (pw && pw.length < 10) return back('A new password must be at least 10 characters.');
+    await pool.query('UPDATE staff_users SET name=?, email=?, title=?, phone=?, hired_at=? WHERE id=?',
+      [name, email, clip(b.title, 80), clip(b.phone, 40), dnorm(b.hired_at), id]);
+    // Role and active state can never be changed on your OWN account (so the
+    // last admin can't demote or disable themselves and lock everyone out).
+    if (!isSelf && perms.ROLE_KEYS.includes(b.role)) await pool.query('UPDATE staff_users SET role=? WHERE id=?', [b.role, id]);
+    if (!isSelf) await pool.query('UPDATE staff_users SET active=? WHERE id=?', [b.active === '1', id]);
+    if (pw) await pool.query('UPDATE staff_users SET password_hash=? WHERE id=?', [await hashPassword(pw), id]);
+    res.redirect('/admin/users?notice=' + encodeURIComponent('Saved ' + email));
+  } catch (err) { console.error('[admin] edit user error:', err.message); back('Could not save changes.'); }
+});
+
+// Delete a staff member outright. Loads they dispatched are kept (dispatcher_id
+// is set null); their attendance/targets/leave cascade away.
+router.post('/users/:id/delete', requireRole('admin'), async (req, res) => {
+  const id = Number(req.params.id);
+  if (id === req.session.user.id) return res.redirect('/admin/users?notice=' + encodeURIComponent("You can't delete your own account."));
+  try {
+    const [rows] = await pool.query('SELECT email FROM staff_users WHERE id=?', [id]);
+    await pool.query('DELETE FROM staff_users WHERE id=?', [id]);
+    res.redirect('/admin/users?notice=' + encodeURIComponent('Deleted ' + (rows[0] ? rows[0].email : 'account')));
+  } catch (err) { console.error('[admin] delete user error:', err.message); res.redirect('/admin/users?notice=' + encodeURIComponent('Could not delete that account.')); }
+});
+
 // --- Carriers (Phase 2 portal) ----------------------------------------------
 const CARRIER_STATUSES = ['pending', 'under_review', 'needs_info', 'approved', 'rejected'];
 

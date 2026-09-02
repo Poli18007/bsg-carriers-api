@@ -1,0 +1,62 @@
+<% var title='Edit staff — BSG Carriers'; var active='users'; var isSelf=(u.id===user.id); %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/users">← Staff</a>
+  <h1 style="margin-left:4px">Edit <%= u.name %></h1>
+  <% if (isSelf) { %><span class="tag onboarding" style="align-self:center">you</span><% } %>
+</div>
+<p class="sub">Update this person's account details, role and access.</p>
+
+<% if (error) { %><div class="error"><%= error %></div><% } %>
+
+<form method="post" action="/admin/users/<%= u.id %>" class="panel" style="max-width:620px;padding:20px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="grid">
+    <div class="field"><label>Name</label><input name="name" value="<%= u.name %>" required></div>
+    <div class="field"><label>Email</label><input name="email" type="email" value="<%= u.email %>" required></div>
+  </div>
+  <div class="grid">
+    <div class="field"><label>Job title</label><input name="title" value="<%= u.title||'' %>" placeholder="e.g. Senior Dispatcher"></div>
+    <div class="field"><label>Phone</label><input name="phone" value="<%= u.phone||'' %>"></div>
+  </div>
+  <div class="grid">
+    <div class="field"><label>Role</label>
+      <% if (isSelf) { %>
+        <input value="<%= u.role %>" disabled>
+        <p class="muted" style="font-size:11px;margin:5px 0 0">You can't change your own role.</p>
+      <% } else { %>
+        <select name="role">
+          <% roles.forEach(function(r){ %><option value="<%= r.key %>" <%= u.role===r.key?'selected':'' %>><%= r.label %></option><% }) %>
+          <% if (u.role==='staff') { %><option value="staff" selected>Staff (legacy)</option><% } %>
+        </select>
+      <% } %>
+    </div>
+    <div class="field"><label>Hired on</label><input type="date" name="hired_at" value="<%= u.hired_at? new Date(u.hired_at).toISOString().slice(0,10):'' %>"></div>
+  </div>
+  <% if (!isSelf) { %>
+  <div class="field"><label>Status</label>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text)">
+      <input type="checkbox" name="active" value="1" <%= u.active?'checked':'' %> style="width:16px;height:16px;accent-color:var(--gold)"> Active — can sign in
+    </label>
+  </div>
+  <% } %>
+  <div class="field"><label>Reset password</label><input name="password" type="text" minlength="10" placeholder="Leave blank to keep current · 10+ characters"></div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <button class="btn gold" type="submit">Save changes</button>
+    <a class="btn" href="/admin/users">Cancel</a>
+  </div>
+</form>
+
+<% if (!isSelf) { %>
+<div class="panel" style="max-width:620px;margin-top:16px;border-color:var(--danger)">
+  <h2 style="font-size:15px;margin:0 0 6px">Delete account</h2>
+  <p class="muted" style="font-size:13px;margin:0 0 12px">Permanently removes <strong><%= u.email %></strong> and their attendance, targets and time-off history. Loads they dispatched are kept — their name is just unlinked. This can't be undone.</p>
+  <form method="post" action="/admin/users/<%= u.id %>/delete" onsubmit="return confirm('Permanently delete <%= u.email %>? This cannot be undone.')">
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    <button class="btn danger" type="submit">Delete this account</button>
+  </form>
+</div>
+<% } %>
+
+<%- include('partials/foot') %>

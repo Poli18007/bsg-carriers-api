@@ -31,13 +31,20 @@
           </td>
           <td><span class="tag <%= u.active?'approved':'cancelled' %>"><%= u.active ? 'Active' : 'Disabled' %></span></td>
           <td class="muted" style="white-space:nowrap"><%= u.last_login ? new Date(u.last_login).toLocaleString() : 'never' %></td>
-          <td style="text-align:right">
-            <% if (u.id !== user.id) { %>
-              <form method="post" action="/admin/users/<%= u.id %>/toggle" style="margin:0">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button class="btn sm" type="submit"><%= u.active ? 'Disable' : 'Enable' %></button>
-              </form>
-            <% } %>
+          <td style="text-align:right;white-space:nowrap">
+            <span style="display:inline-flex;gap:6px;justify-content:flex-end">
+              <a class="btn sm" href="/admin/users/<%= u.id %>/edit">Edit</a>
+              <% if (u.id !== user.id) { %>
+                <form method="post" action="/admin/users/<%= u.id %>/toggle" style="margin:0">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn sm" type="submit"><%= u.active ? 'Disable' : 'Enable' %></button>
+                </form>
+                <form method="post" action="/admin/users/<%= u.id %>/delete" style="margin:0" onsubmit="return confirm('Permanently delete <%= u.email %>? This cannot be undone.')">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="btn sm danger" type="submit">Delete</button>
+                </form>
+              <% } %>
+            </span>
           </td>
         </tr>
       <% }) %>

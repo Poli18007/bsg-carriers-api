@@ -1,0 +1,42 @@
+<% var title=(isNew?'Post a load':'Edit load')+' — BSG Carriers'; var active='loadboard'; var r=rec; %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <a class="btn sm ghost" href="/admin/loadboard">← Load board</a>
+  <h1 style="margin-left:4px"><%= isNew?'Post a load':'Edit load' %></h1>
+</div>
+<p class="sub">This appears on the public website when its status is <strong>Active</strong>. Leave the rate blank to show “Call for rate”.</p>
+
+<form method="post" action="<%= isNew?'/admin/loadboard':('/admin/loadboard/'+r.id) %>" class="panel" style="max-width:680px;padding:20px">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+  <div class="grid">
+    <div class="field"><label>Origin (City, ST)</label><input name="origin" value="<%= r.origin||'' %>" placeholder="Buena Park, CA" required></div>
+    <div class="field"><label>Destination (City, ST)</label><input name="destination" value="<%= r.destination||'' %>" placeholder="Orlando, FL" required></div>
+  </div>
+  <div class="grid">
+    <div class="field"><label>Rate ($) — blank = Call for rate</label><input name="rate" value="<%= r.rate!=null?r.rate:'' %>" placeholder="8900"></div>
+    <div class="field"><label>Equipment</label><input name="equipment" value="<%= r.equipment||'' %>" placeholder="Dry Van / Reefer / Flatbed"></div>
+  </div>
+  <div class="grid">
+    <div class="field"><label>Pickup date</label><input type="date" name="pickup_date" value="<%= r.pickup_date? new Date(r.pickup_date).toISOString().slice(0,10):'' %>"></div>
+    <div class="field"><label>Miles (optional)</label><input name="miles" value="<%= r.miles!=null?r.miles:'' %>" placeholder="2400"></div>
+  </div>
+  <div class="grid">
+    <div class="field"><label>Weight (optional)</label><input name="weight" value="<%= r.weight||'' %>" placeholder="42,000 lbs"></div>
+    <div class="field"><label>Status</label><select name="status"><% statuses.forEach(function(s){ %><option value="<%= s %>" <%= r.status===s?'selected':'' %>><%= s %></option><% }) %></select></div>
+  </div>
+  <div class="field"><label>Notes (shown on the card)</label><input name="notes" value="<%= r.notes||'' %>" placeholder="e.g. Drop &amp; hook · No-touch"></div>
+  <div class="field">
+    <label>Special</label>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text)">
+      <input type="checkbox" name="live_unload" value="1" <%= r.live_unload?'checked':'' %> style="width:16px;height:16px;accent-color:var(--gold)"> Live unload
+    </label>
+  </div>
+  <input type="hidden" name="sort" value="<%= r.sort||0 %>">
+  <div style="display:flex;gap:10px;align-items:center">
+    <button class="btn gold" type="submit"><%= isNew?'Post load':'Save changes' %></button>
+    <a class="btn" href="/admin/loadboard">Cancel</a>
+  </div>
+</form>
+
+<%- include('partials/foot') %>

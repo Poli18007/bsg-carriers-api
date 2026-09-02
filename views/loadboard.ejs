@@ -1,0 +1,55 @@
+<% var title='Load board — BSG Carriers'; var active='loadboard';
+   function money(n){ return n==null?'<span class="muted">Call for rate</span>':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:0}); }
+   function d(x){ return x?new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric'}):'—'; }
+   function stTag(s){ return s==='active'?'approved':(s==='booked'?'dispatched':'read'); } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Load board</h1>
+  <div class="spacer" style="display:flex;gap:8px">
+    <a class="btn" href="https://bsgcarriers.com/load-board/" target="_blank" rel="noopener">View public board ↗</a>
+    <a class="btn gold" href="/admin/loadboard/new">+ Post a load</a>
+  </div>
+</div>
+<p class="sub">The available loads shown publicly on the website. Only <strong>Active</strong> loads appear to visitors.</p>
+
+<div class="kpis">
+  <div class="kpi accent"><div class="n"><%= counts.active %></div><div class="l">Live on site</div></div>
+  <div class="kpi"><div class="n"><%= counts.booked %></div><div class="l">Booked</div></div>
+  <div class="kpi"><div class="n"><%= counts.total %></div><div class="l">Total posted</div></div>
+</div>
+
+<div class="panel">
+  <table>
+    <thead><tr><th>Lane</th><th>Rate</th><th>Equipment</th><th>Pickup</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      <% if(!rows.length){ %><tr><td colspan="6" class="muted" style="padding:26px;text-align:center">No loads posted yet. <a href="/admin/loadboard/new">Post one</a>.</td></tr><% } %>
+      <% rows.forEach(function(l){ %>
+        <tr class="row" onclick="location.href='/admin/loadboard/<%= l.id %>/edit'">
+          <td><strong><%= l.origin %></strong> <span class="muted">→</span> <strong><%= l.destination %></strong>
+            <% if(l.live_unload){ %><br><span class="tag booked" style="font-size:10px">🔴 Live unload</span><% } %></td>
+          <td><%- money(l.rate) %></td>
+          <td class="muted"><%= l.equipment || '—' %></td>
+          <td class="muted" style="white-space:nowrap"><%= d(l.pickup_date) %></td>
+          <td><span class="tag <%= stTag(l.status) %>"><%= l.status %></span></td>
+          <td style="text-align:right;white-space:nowrap" onclick="event.stopPropagation()">
+            <span style="display:inline-flex;gap:6px;justify-content:flex-end">
+              <a class="btn sm" href="/admin/loadboard/<%= l.id %>/edit">Edit</a>
+              <form method="post" action="/admin/loadboard/<%= l.id %>/status" style="margin:0">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="status" value="<%= l.status==='active'?'booked':'active' %>">
+                <button class="btn sm" type="submit"><%= l.status==='active'?'Mark booked':'Set live' %></button>
+              </form>
+              <form method="post" action="/admin/loadboard/<%= l.id %>/delete" style="margin:0" onsubmit="return confirm('Delete this load from the board?')">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn sm danger" type="submit">Delete</button>
+              </form>
+            </span>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

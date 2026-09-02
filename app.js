@@ -34,6 +34,8 @@ const maintenanceRouter = require('./src/routes/maintenance');
 const reportsRouter = require('./src/routes/reports');
 const settingsRouter = require('./src/routes/settings');
 const hrRouter = require('./src/routes/hr');
+const loadboardRouter = require('./src/routes/loadboard');
+const { pool: dbPool } = require('./src/db');
 const perms = require('./src/lib/perms');
 const portalRouter = require('./src/routes/portal');
 
@@ -77,6 +79,21 @@ app.use('/leads', cors({
   methods: ['POST'],
 }));
 app.use(leadsRouter);
+
+// --- Public API: /loadboard (read-only JSON for the marketing site) ----------
+// Open CORS (GET only) — this is public marketing data, curated by staff.
+app.get('/loadboard', cors({ origin: true, methods: ['GET'] }), async (req, res) => {
+  try {
+    const [rows] = await dbPool.query(
+      `SELECT id, origin, destination, rate, equipment, miles, weight, pickup_date, notes, live_unload
+         FROM board_loads WHERE status='active' ORDER BY sort, created_at DESC LIMIT 100`);
+    res.set('Cache-Control', 'public, max-age=60');
+    res.json({ ok: true, loads: rows });
+  } catch (e) {
+    console.error('[loadboard] public error:', e.message);
+    res.status(500).json({ ok: false, loads: [] });
+  }
+});
 
 // --- Sessions + admin -------------------------------------------------------
 // Cookie-based sessions (signed, no server-side store) — the right fit for
@@ -130,6 +147,7 @@ app.use('/admin', sessionMw, csrf, perms.guard, expensesRouter); // expenses
 app.use('/admin', sessionMw, csrf, perms.guard, maintenanceRouter); // fleet maintenance
 app.use('/admin', sessionMw, csrf, perms.guard, reportsRouter);  // analytics
 app.use('/admin', sessionMw, csrf, perms.guard, hrRouter);       // team: attendance, performance, targets
+app.use('/admin', sessionMw, csrf, perms.guard, loadboardRouter); // public load board management
 app.use('/portal', sessionMw, csrf, portalRouter);
 
 // --- Brand asset ------------------------------------------------------------

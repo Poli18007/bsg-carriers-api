@@ -20,10 +20,10 @@ const VALID_ROLES = ROLE_KEYS.concat('staff'); // 'staff' kept as a legacy alias
 
 // Which sections each role may open.
 const ROLE_SECTIONS = {
-  admin: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'team', 'staff'],
-  manager: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'team'],
-  staff: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'team'], // legacy
-  dispatcher: ['dispatch', 'fleet', 'partners', 'inbox'],
+  admin: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'team', 'loadboard', 'staff'],
+  manager: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'team', 'loadboard'],
+  staff: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox', 'team', 'loadboard'], // legacy
+  dispatcher: ['dispatch', 'fleet', 'partners', 'inbox', 'loadboard'],
   billing: ['dispatch', 'billing', 'reports', 'partners'],
   viewer: ['dispatch', 'fleet', 'partners', 'billing', 'reports', 'inbox'],
 };
@@ -37,6 +37,7 @@ const SECTION_OF = {
   invoices: 'billing', expenses: 'billing',
   reports: 'reports',
   team: 'team', leave: 'team', sla: 'team',
+  loadboard: 'loadboard',
   leads: 'inbox',
   users: 'staff',
   'delete-requests': 'staff',

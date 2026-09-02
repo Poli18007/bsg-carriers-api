@@ -242,6 +242,9 @@
       <a class="sb-link <%= A==='loads'?'active':'' %>" href="/admin/loads"><%- ic('list') %> All loads</a>
       <a class="sb-link <%= A==='trips'?'active':'' %>" href="/admin/trips"><%- ic('trip') %> Trips</a>
       <% } %>
+      <% if (has('loadboard')) { %>
+      <a class="sb-link <%= A==='loadboard'?'active':'' %>" href="/admin/loadboard"><%- ic('list') %> Load board <span class="muted" style="font-size:10px;margin-left:auto">public</span></a>
+      <% } %>
 
       <% if (has('fleet')) { %>
       <div class="sb-sec">Fleet &amp; compliance</div>

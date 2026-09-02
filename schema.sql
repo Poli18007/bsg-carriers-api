@@ -563,3 +563,27 @@ CREATE TABLE IF NOT EXISTS leave_requests (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_leave_staff ON leave_requests (staff_id, start_date DESC);
+
+-- ===========================================================================
+-- Public load board — curated available loads shown on the marketing site.
+-- Separate from internal dispatch `loads` so nothing internal is ever exposed;
+-- managed by staff in the admin, served read-only as JSON to the website.
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS board_loads (
+  id           BIGSERIAL PRIMARY KEY,
+  origin       TEXT NOT NULL,
+  destination  TEXT NOT NULL,
+  rate         NUMERIC(10,2),                 -- NULL => "Call for rate"
+  equipment    TEXT,
+  miles        INTEGER,
+  weight       TEXT,
+  pickup_date  DATE,
+  notes        TEXT,
+  live_unload  BOOLEAN NOT NULL DEFAULT false,
+  status       TEXT NOT NULL DEFAULT 'active'
+                 CHECK (status IN ('active','booked','hidden')),
+  sort         INTEGER NOT NULL DEFAULT 0,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_board_loads_status ON board_loads (status, sort, created_at DESC);

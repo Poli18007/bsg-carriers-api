@@ -109,7 +109,7 @@ router.post('/logout', requireCarrier, (req, res) => {
 // Everything below requires a signed-in carrier.
 router.use(requireCarrier);
 
-// --- Dashboard --------------------------------------------------------------
+// --- Home: stats dashboard for approved carriers, onboarding wizard otherwise
 router.get('/', async (req, res) => {
   const carrier = await getCarrier(req.session.carrier.id);
   if (!carrier) { req.session = null; return res.redirect('/portal/login'); }
@@ -117,16 +117,54 @@ router.get('/', async (req, res) => {
     'SELECT id, doc_type, filename, size_bytes, review, uploaded_at, expires_at, renewal_requested_at FROM carrier_documents WHERE carrier_id = ? ORDER BY uploaded_at DESC',
     [carrier.id]
   );
-  // Guided-onboarding state: the current step is derived from the data, so the
-  // wizard is always correct without tracking a step number server-side.
   const byType = {};
   docs.forEach((d) => { if (!byType[d.doc_type]) byType[d.doc_type] = d; });
   const checklist = DOC_TYPES.map((t) => ({ key: t.key, label: t.label, doc: byType[t.key] || null }));
   // Documents BSG has asked the owner-op to renew (re-upload a current copy).
   const renewals = checklist.filter((c) => c.doc && c.doc.renewal_requested_at).map((c) => c.label);
+  const approved = carrier.status === 'approved';
+
+  // Approved carriers get a real dashboard: their loads + account at a glance.
+  if (approved) {
+    try {
+      const [[ls]] = await pool.query(
+        `SELECT COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE bc.category IN ('active','in_transit'))::int AS active,
+                COUNT(*) FILTER (WHERE bc.category='in_transit')::int AS in_transit,
+                COUNT(*) FILTER (WHERE bc.category='delivered')::int AS delivered,
+                COALESCE(SUM(l.rate) FILTER (WHERE bc.category IN ('active','in_transit')),0) AS active_value
+           FROM loads l LEFT JOIN board_columns bc ON bc.id=l.column_id
+          WHERE l.carrier_id=? AND l.status<>'cancelled'`, [carrier.id]);
+      const [[io]] = await pool.query(
+        `SELECT COALESCE(SUM(t.total),0) AS billed, COALESCE(SUM(t.paid),0) AS paid FROM (
+            SELECT (SELECT COALESCE(SUM(amount),0) FROM invoice_lines il WHERE il.invoice_id=i.id) AS total,
+                   (SELECT COALESCE(SUM(amount),0) FROM invoice_payments p WHERE p.invoice_id=i.id) AS paid
+              FROM invoices i WHERE i.carrier_id=? AND i.status IN ('sent','paid')) t`, [carrier.id]);
+      const [upcoming] = await pool.query(
+        `SELECT l.id, l.ref, l.origin, l.destination, l.pickup_date, l.delivery_date, l.rate, l.status,
+                bc.name AS col_name, bc.color AS col_color, bc.category
+           FROM loads l LEFT JOIN board_columns bc ON bc.id=l.column_id
+          WHERE l.carrier_id=? AND l.status<>'cancelled'
+          ORDER BY (bc.category IN ('active','in_transit')) DESC, l.pickup_date NULLS LAST, l.id DESC LIMIT 6`, [carrier.id]);
+      const outstanding = Math.max(0, Math.round((Number(io.billed) - Number(io.paid)) * 100) / 100);
+      const stats = { total: ls.total, active: ls.active, in_transit: ls.in_transit, delivered: ls.delivered, active_value: Number(ls.active_value), outstanding };
+      const soon = new Date(); soon.setDate(soon.getDate() + 30);
+      const docsExpiring = checklist.filter((c) => c.doc && c.doc.expires_at && new Date(c.doc.expires_at) <= soon).map((c) => c.label);
+      const docsApproved = checklist.filter((c) => c.doc && c.doc.review === 'accepted').length;
+      return res.render('portal/dashboard', {
+        carrier, stats, upcoming, renewals, docsExpiring,
+        docsApproved, docsTotal: checklist.length,
+        csrfToken: req.csrfToken(), notice: req.query.notice || null, error: req.query.error || null,
+      });
+    } catch (e) {
+      console.error('[portal] dashboard error:', e.message);
+      // fall through to the onboarding view rather than hanging the request
+    }
+  }
+
+  // Not yet approved — guided onboarding wizard (step state derived from data).
   const docsDone = checklist.every((c) => c.doc);
   const profileDone = !!(carrier.mc_number && carrier.dot_number && carrier.equipment);
-  const approved = carrier.status === 'approved';
   const inReview = carrier.status === 'under_review' || carrier.status === 'needs_info';
   const steps = [
     { n: 1, label: 'Account', state: 'done' },
@@ -135,12 +173,27 @@ router.get('/', async (req, res) => {
     { n: 4, label: 'Review', state: approved ? 'done' : (docsDone ? 'current' : 'todo') },
   ];
   const doneCount = steps.filter((s) => s.state === 'done').length;
-  res.render('portal/dashboard', {
+  res.render('portal/onboarding', {
     carrier, docs, docTypes: DOC_TYPES, checklist, steps, renewals,
     progress: Math.round((doneCount / steps.length) * 100),
     profileDone, docsDone, approved, inReview,
     csrfToken: req.csrfToken(), notice: req.query.notice || null, error: req.query.error || null,
   });
+});
+
+// --- Documents management (approved carriers keep their paperwork current) ---
+router.get('/documents', async (req, res) => {
+  const carrier = await getCarrier(req.session.carrier.id);
+  if (!carrier) { req.session = null; return res.redirect('/portal/login'); }
+  const [docs] = await pool.query(
+    `SELECT id, doc_type, filename, size_bytes, review, uploaded_at, expires_at, renewal_requested_at,
+            (expires_at IS NOT NULL AND expires_at < CURRENT_DATE) AS expired,
+            (expires_at IS NOT NULL AND expires_at >= CURRENT_DATE AND expires_at <= CURRENT_DATE + 30) AS expiring
+       FROM carrier_documents WHERE carrier_id=? ORDER BY uploaded_at DESC`, [carrier.id]);
+  const byType = {};
+  docs.forEach((d) => { if (!byType[d.doc_type]) byType[d.doc_type] = d; });
+  const checklist = DOC_TYPES.map((t) => ({ key: t.key, label: t.label, doc: byType[t.key] || null }));
+  res.render('portal/documents', { carrier, checklist, csrfToken: req.csrfToken(), notice: req.query.notice || null, error: req.query.error || null });
 });
 
 // --- Profile ----------------------------------------------------------------

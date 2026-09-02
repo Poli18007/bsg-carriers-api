@@ -77,6 +77,12 @@
   .upload-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}
   .upload-row .lbl{min-width:230px;font-weight:600}
   input[type=file]{color:var(--muted);font-size:13px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:22px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .n{font-size:22px;font-weight:800;color:var(--text);letter-spacing:-.5px}
+  .kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+  .kpi.accent{border-color:var(--gold-600)} .kpi.accent .n{color:var(--gold)}
+  table th{white-space:nowrap}
   .icon-btn{background:none;border:1px solid var(--line);color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px}
   .icon-btn:hover{color:var(--text);border-color:var(--gold)}
   .logo-black{display:none}
@@ -100,6 +106,7 @@
   <nav>
     <a href="/portal" class="<%= (typeof active!=='undefined'&&active==='home')?'active':'' %>">Dashboard</a>
     <a href="/portal/loads" class="<%= (typeof active!=='undefined'&&active==='loads')?'active':'' %>">My Loads</a>
+    <a href="/portal/documents" class="<%= (typeof active!=='undefined'&&active==='documents')?'active':'' %>">Documents</a>
     <a href="/portal/invoices" class="<%= (typeof active!=='undefined'&&active==='invoices')?'active':'' %>">Invoices</a>
     <a href="/portal/profile" class="<%= (typeof active!=='undefined'&&active==='profile')?'active':'' %>">My Profile</a>
   </nav>

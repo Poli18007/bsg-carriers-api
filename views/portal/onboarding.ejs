@@ -1,0 +1,154 @@
+<% var title='Your onboarding — BSG Carriers'; var active='home';
+   var STATUS_MSG={
+     pending:'Upload your three documents below and a dispatcher will review your file.',
+     under_review:'Your file is with our team. There is nothing more to do right now — we will email you when it is reviewed.',
+     needs_info:'We need something more from you. Check the note we emailed, update the item below, and you are back in the queue.',
+     approved:'You are approved and active. Your dispatcher will assign you loads — you will find them under “My Loads”.',
+     rejected:'This application was not approved. Reply to our email or call us if you think this is a mistake.'
+   }; %>
+<%- include('head', { title: title, active: active }) %>
+
+<% if (notice) { %><div class="notice"><%= notice %></div><% } %>
+<% if (error) { %><div class="error"><%= error %></div><% } %>
+
+<% if (approved) { %>
+  <h1>You're approved 🎉</h1>
+  <p class="sub">Welcome aboard, <%= carrier.company_name %>. You're cleared to haul with BSG.</p>
+<% } else { %>
+  <h1>Get set up to haul</h1>
+  <p class="sub">A few quick steps and you're ready for loads, <%= carrier.company_name %>.</p>
+<% } %>
+
+<!-- Progress stepper -->
+<div class="stepper">
+  <% steps.forEach(function(s){ %>
+    <div class="step <%= s.state %>">
+      <span class="dot"><%= s.state==='done' ? '✓' : s.n %></span>
+      <span class="lbl"><%= s.label %></span>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Status banner -->
+<div class="panel banner <%= carrier.status %>">
+  <div>
+    <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.5px">Status</div>
+    <div style="margin-top:6px"><span class="status <%= carrier.status %>"><%= carrier.status.replace('_',' ') %></span></div>
+  </div>
+  <div class="bmsg"><%= STATUS_MSG[carrier.status] || '' %></div>
+</div>
+
+<% if (typeof renewals !== 'undefined' && renewals.length) { %>
+<div class="error" style="display:flex;align-items:flex-start;gap:10px">
+  <span>📄</span><span>BSG has asked you to upload a <strong>current copy</strong> of: <strong><%= renewals.join(', ') %></strong>. Please replace it in the Documents section below — your file stays valid until you do.</span>
+</div>
+<% } %>
+
+<% if (approved) { %>
+  <a class="cta-loads" href="/portal/loads">View your loads →</a>
+<% } %>
+
+<!-- Step 2 — Company details -->
+<h2>1 · Company details</h2>
+<div class="panel step-panel">
+  <div class="row2">
+    <div><span class="k">MC number</span><span class="v"><%= carrier.mc_number || '—' %></span></div>
+    <div><span class="k">DOT number</span><span class="v"><%= carrier.dot_number || '—' %></span></div>
+    <div><span class="k">Equipment</span><span class="v"><%= carrier.equipment || '—' %></span></div>
+    <div><span class="k">Trucks</span><span class="v"><%= carrier.num_trucks || '—' %></span></div>
+  </div>
+  <div class="step-foot">
+    <% if (profileDone) { %><span class="ok-tick">✓ Looks complete</span><% } else { %><span class="muted">Add your MC #, DOT # and equipment so we can match you to freight.</span><% } %>
+    <a class="btn sm gold" href="/portal/profile" style="margin-left:auto"><%= profileDone ? 'Edit details' : 'Complete details' %></a>
+  </div>
+</div>
+
+<!-- Step 3 — Documents -->
+<h2>2 · Documents</h2>
+<div class="panel step-panel">
+  <p class="muted" style="margin-top:0">We need all three before we can approve you. PDF, JPG or PNG, up to 4 MB each.</p>
+  <% checklist.forEach(function(c){ %>
+    <div class="chk">
+      <span class="ic <%= c.doc ? 'on' : 'off' %>"><%= c.doc ? '✓' : '' %></span>
+      <div class="grow">
+        <div class="nm"><%= c.label %></div>
+        <% if (c.doc) { %>
+          <div class="meta">
+            <a href="/portal/documents/<%= c.doc.id %>" target="_blank"><%= c.doc.filename %></a>
+            · <span class="status <%= c.doc.review==='accepted'?'approved':(c.doc.review==='rejected'?'needs_info':'under_review') %>" style="font-size:10px"><%= c.doc.review %></span>
+          </div>
+        <% } else { %>
+          <div class="meta">Not uploaded yet</div>
+        <% } %>
+      </div>
+      <form class="up" method="post" action="/portal/documents?_csrf=<%= csrfToken %>" enctype="multipart/form-data">
+        <input type="hidden" name="doc_type" value="<%= c.key %>">
+        <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png" required onchange="this.form.submit()">
+        <button class="btn sm <%= c.doc ? '' : 'gold' %>" type="submit"><%= c.doc ? 'Replace' : 'Upload' %></button>
+      </form>
+    </div>
+  <% }) %>
+</div>
+
+<!-- Step 4 — Review state -->
+<h2>3 · Review</h2>
+<div class="panel step-panel review-card">
+  <% if (approved) { %>
+    <div class="rev-line"><span class="ic on">✓</span> Reviewed and approved. You're all set.</div>
+  <% } else if (docsDone) { %>
+    <div class="rev-line"><span class="ic on">✓</span> Your documents are in — your file is queued for our team.</div>
+    <p class="muted" style="margin:8px 0 0">We'll email you the moment it's reviewed. No action needed.</p>
+  <% } else { %>
+    <div class="rev-line"><span class="ic off"></span> Upload your three documents above to send your file for review.</div>
+  <% } %>
+</div>
+
+<style>
+  .stepper{display:flex;margin:20px 0 22px}
+  .step{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;text-align:center}
+  .step:not(:last-child)::after{content:"";position:absolute;top:16px;left:50%;width:100%;height:2px;background:var(--line);z-index:0}
+  .step.done:not(:last-child)::after{background:var(--gold)}
+  .step .dot{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:var(--panel);border:2px solid var(--line);color:var(--muted);font-weight:800;font-size:14px;position:relative;z-index:1}
+  .step.done .dot{background:var(--gold);border-color:var(--gold);color:#1a1400}
+  .step.current .dot{border-color:var(--gold);color:var(--gold)}
+  .step .lbl{font-size:11.5px;margin-top:8px;color:var(--muted);max-width:90px}
+  .step.current .lbl,.step.done .lbl{color:var(--text);font-weight:600}
+
+  .banner{display:flex;align-items:center;gap:18px;margin-bottom:22px;border-left:3px solid var(--line)}
+  .banner.approved{border-left-color:var(--gold)}
+  .banner.under_review{border-left-color:var(--info)}
+  .banner.needs_info{border-left-color:var(--danger)}
+  .banner.pending{border-left-color:var(--gold)}
+  .banner .bmsg{max-width:520px;color:var(--muted);font-size:13.5px}
+
+  .cta-loads{display:inline-flex;align-items:center;justify-content:center;height:50px;padding:0 26px;margin-bottom:22px;
+    border-radius:11px;background:linear-gradient(96deg,var(--gold),var(--gold-600));color:#1a1400;font-weight:800;text-decoration:none;
+    text-transform:uppercase;letter-spacing:.06em;font-size:14px}
+
+  h2{font-size:15px;margin:22px 0 10px}
+  .step-panel{margin-bottom:6px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px 22px}
+  .row2 .k{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .row2 .v{display:block;font-weight:600;margin-top:2px}
+  .step-foot{display:flex;align-items:center;gap:12px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);flex-wrap:wrap}
+  .ok-tick{color:var(--gold);font-weight:600;font-size:13px}
+
+  .chk{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--line)}
+  .chk:last-child{border-bottom:0}
+  .chk .ic{width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto;font-size:13px}
+  .chk .ic.on{background:rgba(220,181,85,.16);color:var(--gold)}
+  .chk .ic.off{border:2px dashed var(--line);color:var(--muted)}
+  .chk .grow{flex:1;min-width:0}
+  .chk .nm{font-weight:600}
+  .chk .meta{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chk .up{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+  .chk .up input[type=file]{width:120px;font-size:11px}
+  .review-card .rev-line{display:flex;align-items:center;gap:10px;font-weight:600}
+  .review-card .ic{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto}
+  .review-card .ic.on{background:rgba(220,181,85,.16);color:var(--gold)}
+  .review-card .ic.off{border:2px dashed var(--line)}
+  @media(max-width:560px){ .step .lbl{font-size:10px} .chk .up input[type=file]{width:82px} .row2{grid-template-columns:1fr} }
+</style>
+
+<%- include('foot') %>

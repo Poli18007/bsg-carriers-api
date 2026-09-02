@@ -1,0 +1,40 @@
+<% var title='Documents — BSG Carriers'; var active='documents';
+   function dsp(x){ return x? new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : ''; }
+   function revTag(r){ return r==='accepted'?'approved':(r==='rejected'?'needs_info':'pending'); } %>
+<%- include('head', { title: title, active: active }) %>
+
+<% if (notice) { %><div class="notice"><%= notice %></div><% } %>
+<% if (error) { %><div class="error"><%= error %></div><% } %>
+
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:2px">
+  <a class="btn sm" href="/portal">← Dashboard</a>
+  <h1 style="margin:0">Your documents</h1>
+</div>
+<p class="sub">Keep your insurance, authority and W-9 current. We'll flag anything that needs renewing.</p>
+
+<div class="grid">
+  <% checklist.forEach(function(c){ var d=c.doc; %>
+    <div class="panel">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <strong style="flex:1"><%= c.label %></strong>
+        <% if (d) { %><span class="status <%= revTag(d.review) %>"><%= d.review==='accepted'?'Approved':(d.review==='rejected'?'Rejected':'In review') %></span><% } else { %><span class="status needs_info">Missing</span><% } %>
+      </div>
+      <% if (d) { %>
+        <div class="muted" style="font-size:13px;margin-bottom:6px">
+          <a href="/portal/documents/<%= d.id %>" target="_blank"><%= d.filename %></a><br>
+          Uploaded <%= dsp(d.uploaded_at) %>
+          <% if (d.expires_at) { %> · <% if (d.expired) { %><span style="color:var(--danger)">Expired <%= dsp(d.expires_at) %></span><% } else if (d.expiring) { %><span style="color:var(--warn)">Expires <%= dsp(d.expires_at) %></span><% } else { %>Valid to <%= dsp(d.expires_at) %><% } %><% } %>
+        </div>
+        <% if (d.renewal_requested_at) { %><div class="notice" style="padding:8px 12px;margin:8px 0;font-size:13px">BSG has asked for an updated copy — please upload one below.</div><% } %>
+      <% } %>
+      <form method="post" action="/portal/documents?_csrf=<%= csrfToken %>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+        <input type="hidden" name="doc_type" value="<%= c.key %>">
+        <input type="file" name="document" accept="application/pdf,image/jpeg,image/png" required style="font-size:13px;color:var(--muted)">
+        <button class="btn sm gold" type="submit"><%= d?'Replace':'Upload' %></button>
+      </form>
+    </div>
+  <% }) %>
+</div>
+<p class="muted" style="font-size:12px;margin-top:14px">Accepted formats: PDF, JPG, PNG (max 4 MB). A new upload replaces the copy on file and clears any renewal request.</p>
+
+<%- include('foot') %>

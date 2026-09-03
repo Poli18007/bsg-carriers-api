@@ -1,0 +1,78 @@
+<% var title='Load requests — BSG Carriers'; var active='loadreq';
+   function money(n){ return n==null?'Call for rate':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:0}); }
+   function ago(s){ s=Number(s)||0; if(s<60)return s+'s'; if(s<3600)return Math.floor(s/60)+'m'; return Math.floor(s/3600)+'h'; } %>
+<%- include('partials/head', { title: title, active: active }) %>
+
+<div class="page-head">
+  <h1>Load requests</h1>
+  <span class="spacer muted" style="font-size:13px">● Live queue · first to accept wins</span>
+</div>
+<p class="sub">Carriers who tapped “Request this load” on the portal. The <strong>first dispatcher to accept</strong> claims it — it then drops off the board and everyone else's queue.</p>
+
+<% if (msg) { %><div class="notice"><%= msg %></div><% } %>
+
+<div id="lr-list" style="display:flex;flex-direction:column;gap:10px">
+  <% if(!pending.length){ %><div class="panel muted" style="padding:26px;text-align:center">No open requests right now. New ones appear here automatically.</div><% } %>
+  <% pending.forEach(function(r){ %>
+    <div class="panel lr-row" data-id="<%= r.id %>" style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:14px 18px">
+      <div style="flex:1 1 260px;min-width:0">
+        <div style="font-weight:800;color:var(--heading)"><%= r.origin||'?' %> <span class="muted">→</span> <%= r.destination||'?' %><% if(r.live_unload){ %> <span class="tag booked" style="font-size:10px">🔴 Live unload</span><% } %></div>
+        <div class="muted" style="font-size:12.5px;margin-top:3px"><%= r.carrier_company||'Carrier' %><% if(r.carrier_phone){ %> · <%= r.carrier_phone %><% } %> · requested <%= ago(r.age_s) %> ago</div>
+      </div>
+      <div style="font-family:var(--font-mono,'IBM Plex Mono',monospace);font-size:18px;font-weight:800;color:var(--gold);white-space:nowrap"><%= money(r.rate) %></div>
+      <form method="post" action="/admin/load-requests/<%= r.id %>/accept" style="margin:0">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn gold" type="submit">Accept →</button>
+      </form>
+    </div>
+  <% }) %>
+</div>
+
+<% if (recent.length) { %>
+<h2 style="font-size:15px;margin:26px 0 10px">Recently accepted</h2>
+<div class="panel">
+  <table>
+    <thead><tr><th>Carrier</th><th>Lane</th><th>Accepted by</th><th>When</th></tr></thead>
+    <tbody>
+      <% recent.forEach(function(r){ %>
+        <tr>
+          <td><strong><%= r.carrier_company||'—' %></strong></td>
+          <td><%= r.origin||'?' %> → <%= r.destination||'?' %></td>
+          <td><span class="tag approved"><%= r.accepted_by_name||'—' %></span></td>
+          <td class="muted" style="white-space:nowrap"><%= ago(r.ago_s) %> ago</td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% } %>
+
+<script>
+(function(){
+  var csrf=<%- JSON.stringify(csrfToken) %>;
+  var list=document.getElementById('lr-list');
+  function money(n){ return n==null?'Call for rate':'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:0}); }
+  function ago(s){ s=Number(s)||0; if(s<60)return s+'s'; if(s<3600)return Math.floor(s/60)+'m'; return Math.floor(s/3600)+'h'; }
+  function esc(x){ var d=document.createElement('div'); d.textContent=(x==null?'':String(x)); return d.innerHTML; }
+  function rowHtml(r){
+    return '<div class="panel lr-row" data-id="'+r.id+'" style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:14px 18px">'
+      + '<div style="flex:1 1 260px;min-width:0">'
+      +   '<div style="font-weight:800;color:var(--heading)">'+esc(r.origin||'?')+' <span class="muted">&rarr;</span> '+esc(r.destination||'?')+(r.live_unload?' <span class="tag booked" style="font-size:10px">🔴 Live unload</span>':'')+'</div>'
+      +   '<div class="muted" style="font-size:12.5px;margin-top:3px">'+esc(r.carrier_company||'Carrier')+(r.carrier_phone?(' · '+esc(r.carrier_phone)):'')+' · requested '+ago(r.age_s)+' ago</div>'
+      + '</div>'
+      + '<div style="font-family:monospace;font-size:18px;font-weight:800;color:var(--gold);white-space:nowrap">'+money(r.rate)+'</div>'
+      + '<form method="post" action="/admin/load-requests/'+r.id+'/accept" style="margin:0"><input type="hidden" name="_csrf" value="'+esc(csrf)+'"><button class="btn gold" type="submit">Accept &rarr;</button></form>'
+      + '</div>';
+  }
+  function refresh(){
+    fetch('/admin/load-requests/feed',{headers:{Accept:'application/json'}}).then(function(r){return r.json();}).then(function(d){
+      var rows=(d&&d.pending)||[];
+      if(!rows.length){ list.innerHTML='<div class="panel muted" style="padding:26px;text-align:center">No open requests right now. New ones appear here automatically.</div>'; return; }
+      list.innerHTML=rows.map(rowHtml).join('');
+    }).catch(function(){});
+  }
+  setInterval(refresh, 10000);
+})();
+</script>
+
+<%- include('partials/foot') %>

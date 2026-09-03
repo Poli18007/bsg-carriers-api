@@ -6,6 +6,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { requireLogin } = require('../lib/auth');
+const { staffAlert } = require('../lib/notify');
 
 const router = express.Router();
 router.use(requireLogin);
@@ -63,6 +64,58 @@ router.post('/loadboard/:id/status', async (req, res) => {
 router.post('/loadboard/:id/delete', async (req, res) => {
   await pool.query('DELETE FROM board_loads WHERE id=?', [req.params.id]);
   res.redirect('/admin/loadboard');
+});
+
+// --- Load requests queue (first dispatcher to accept wins) ------------------
+router.get('/load-requests', async (req, res) => {
+  const [pending] = await pool.query(
+    `SELECT *, EXTRACT(EPOCH FROM (now()-created_at))::int AS age_s
+       FROM load_requests WHERE status='pending' ORDER BY created_at DESC LIMIT 100`);
+  const [recent] = await pool.query(
+    `SELECT *, EXTRACT(EPOCH FROM (now()-accepted_at))::int AS ago_s
+       FROM load_requests WHERE status='accepted' ORDER BY accepted_at DESC LIMIT 12`);
+  res.render('load-requests', { user: req.session.user, pending, recent, csrfToken: req.csrfToken(), msg: req.query.msg || null });
+});
+
+// Poll feed for the live "pop-up" — pending requests + count.
+router.get('/load-requests/feed', async (req, res) => {
+  try {
+    const [pending] = await pool.query(
+      `SELECT id, carrier_company, carrier_phone, origin, destination, rate, live_unload,
+              EXTRACT(EPOCH FROM (now()-created_at))::int AS age_s
+         FROM load_requests WHERE status='pending' ORDER BY created_at DESC LIMIT 100`);
+    res.set('Cache-Control', 'no-store');
+    res.json({ count: pending.length, pending });
+  } catch (e) { res.status(500).json({ count: 0, pending: [] }); }
+});
+
+// Atomic claim: only the first dispatcher whose UPDATE flips it from 'pending'
+// wins; concurrent clicks affect 0 rows and are told it's already taken.
+router.post('/load-requests/:id/accept', async (req, res) => {
+  const me = req.session.user;
+  const back = (m) => res.redirect('/admin/load-requests?msg=' + encodeURIComponent(m));
+  try {
+    const [claimed] = await pool.query(
+      `UPDATE load_requests SET status='accepted', accepted_by=?, accepted_by_name=?, accepted_at=now()
+         WHERE id=? AND status='pending'
+       RETURNING board_load_id, carrier_company, carrier_email, carrier_phone, origin, destination, rate`,
+      [me.id, me.name, req.params.id]);
+    if (claimed.length) {
+      const r = claimed[0];
+      if (r.board_load_id) {
+        await pool.query("UPDATE board_loads SET status='booked', updated_at=now() WHERE id=? AND status='active'", [r.board_load_id]);
+        await pool.query("UPDATE load_requests SET status='closed' WHERE board_load_id=? AND status='pending'", [r.board_load_id]);
+      }
+      staffAlert('Load request accepted', [
+        ['Dispatcher', me.name], ['Carrier', r.carrier_company || '—'],
+        ['Contact', (r.carrier_email || '') + (r.carrier_phone ? (' · ' + r.carrier_phone) : '')],
+        ['Lane', (r.origin || '?') + ' → ' + (r.destination || '?')],
+      ]);
+      return back('✓ You got it — ' + (r.carrier_company || 'carrier') + ': ' + (r.origin || '?') + ' → ' + (r.destination || '?') + '. Reach out to confirm.');
+    }
+    const [[cur]] = await pool.query('SELECT accepted_by_name FROM load_requests WHERE id=?', [req.params.id]);
+    return back('Already taken' + (cur && cur.accepted_by_name ? (' by ' + cur.accepted_by_name) : '') + '.');
+  } catch (e) { console.error('[load-requests accept] error:', e.message); return back('Something went wrong — try again.'); }
 });
 
 module.exports = router;

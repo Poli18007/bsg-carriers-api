@@ -587,3 +587,29 @@ CREATE TABLE IF NOT EXISTS board_loads (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_board_loads_status ON board_loads (status, sort, created_at DESC);
+
+-- ===========================================================================
+-- Load requests — a carrier taps "Request this load" on the portal board; it
+-- lands in the dispatcher queue where the FIRST dispatcher to accept it wins
+-- (atomic claim). Lane details are snapshotted so the request stands even if
+-- the board load later changes or is removed.
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS load_requests (
+  id               BIGSERIAL PRIMARY KEY,
+  board_load_id    INTEGER REFERENCES board_loads(id) ON DELETE SET NULL,
+  carrier_id       INTEGER REFERENCES carriers(id) ON DELETE SET NULL,
+  carrier_company  TEXT,
+  carrier_email    TEXT,
+  carrier_phone    TEXT,
+  origin           TEXT,
+  destination      TEXT,
+  rate             NUMERIC(10,2),
+  live_unload      BOOLEAN NOT NULL DEFAULT false,
+  status           TEXT NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending','accepted','closed')),
+  accepted_by      INTEGER REFERENCES staff_users(id) ON DELETE SET NULL,
+  accepted_by_name TEXT,
+  accepted_at      TIMESTAMPTZ,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_load_requests_status ON load_requests (status, created_at DESC);

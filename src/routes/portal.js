@@ -353,15 +353,24 @@ router.get('/loadboard', async (req, res) => {
 
 router.post('/loadboard/:id/request', async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT origin, destination, rate FROM board_loads WHERE id=? AND status='active' LIMIT 1", [req.params.id]);
+    const [rows] = await pool.query("SELECT origin, destination, rate, live_unload FROM board_loads WHERE id=? AND status='active' LIMIT 1", [req.params.id]);
     const l = rows[0];
     if (l) {
-      staffAlert('Carrier requested a load', [
-        ['Company', req.session.carrier.company_name], ['Email', req.session.carrier.email],
-        ['Phone', req.session.carrier.phone || '—'],
-        ['Lane', (l.origin || '?') + ' → ' + (l.destination || '?')],
-        ['Rate', l.rate != null ? ('$' + Number(l.rate).toLocaleString()) : 'Call for rate'],
-      ]);
+      const cid = req.session.carrier.id;
+      // One pending request per carrier per load — a second tap is a no-op.
+      const [dup] = await pool.query("SELECT 1 FROM load_requests WHERE board_load_id=? AND carrier_id=? AND status='pending' LIMIT 1", [req.params.id, cid]);
+      if (!dup.length) {
+        const [[c]] = await pool.query('SELECT phone FROM carriers WHERE id=? LIMIT 1', [cid]);
+        await pool.query(
+          `INSERT INTO load_requests (board_load_id, carrier_id, carrier_company, carrier_email, carrier_phone, origin, destination, rate, live_unload)
+           VALUES (?,?,?,?,?,?,?,?,?)`,
+          [req.params.id, cid, req.session.carrier.company_name, req.session.carrier.email, (c && c.phone) || null, l.origin, l.destination, l.rate, !!l.live_unload]);
+        staffAlert('Carrier requested a load', [
+          ['Company', req.session.carrier.company_name], ['Email', req.session.carrier.email], ['Phone', (c && c.phone) || '—'],
+          ['Lane', (l.origin || '?') + ' → ' + (l.destination || '?')],
+          ['Rate', l.rate != null ? ('$' + Number(l.rate).toLocaleString()) : 'Call for rate'],
+        ]);
+      }
     }
     res.redirect('/portal/loadboard?notice=' + encodeURIComponent('Request sent — a dispatcher will reach out to confirm this load.'));
   } catch (e) {

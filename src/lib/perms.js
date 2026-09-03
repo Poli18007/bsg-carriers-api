@@ -32,6 +32,7 @@ const ROLE_SECTIONS = {
 // login, logout, brand, health) is allowed for any signed-in user.
 const SECTION_OF = {
   '': 'dispatch', loads: 'dispatch', board: 'dispatch', boards: 'dispatch', columns: 'dispatch', trailers: 'dispatch', trips: 'dispatch',
+  'load-requests': 'dispatch',
   trucks: 'fleet', maintenance: 'fleet', dvir: 'fleet',
   carriers: 'partners', customers: 'partners', brokers: 'partners', drivers: 'partners',
   invoices: 'billing', expenses: 'billing',
@@ -86,6 +87,11 @@ async function guard(req, res, next) {
     if (user.role === 'admin' && res.locals.deleteRequests === undefined) {
       try { const [r] = await pool.query('SELECT COUNT(*)::int AS n FROM loads WHERE delete_requested_by IS NOT NULL'); res.locals.deleteRequests = r[0].n; }
       catch (_) { res.locals.deleteRequests = 0; }
+    }
+    // Pending load-request badge for dispatch-capable roles (the live queue).
+    if (can(user.role, 'dispatch') && res.locals.loadRequests === undefined) {
+      try { const [r] = await pool.query("SELECT COUNT(*)::int AS n FROM load_requests WHERE status='pending'"); res.locals.loadRequests = r[0].n; }
+      catch (_) { res.locals.loadRequests = 0; }
     }
   }
   if (!user) return next(); // requireLogin downstream handles the redirect

@@ -101,6 +101,8 @@
   .sb-link .cnt{margin-left:auto;background:#2a2c37;color:var(--muted);font-size:11px;font-weight:700;
                 padding:1px 7px;border-radius:999px}
   .sb-link.active .cnt{background:rgba(220,181,85,.22);color:var(--gold)}
+  @keyframes lrpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.4);background:var(--gold);color:#1a1400}}
+  #lr-badge.pulsing{animation:lrpulse 1s ease 3}
   .sb-user{border-top:1px solid var(--line-soft);padding:12px;display:flex;align-items:center;gap:10px}
   .sb-user .av{width:32px;height:32px;border-radius:50%;background:var(--raise);color:var(--gold);
                display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;flex:0 0 auto}
@@ -241,6 +243,7 @@
       <a class="sb-link <%= A==='trailers'?'active':'' %>" href="/admin/trailers"><%- ic('trailer') %> Trailers board</a>
       <a class="sb-link <%= A==='loads'?'active':'' %>" href="/admin/loads"><%- ic('list') %> All loads</a>
       <a class="sb-link <%= A==='trips'?'active':'' %>" href="/admin/trips"><%- ic('trip') %> Trips</a>
+      <a class="sb-link <%= A==='loadreq'?'active':'' %>" href="/admin/load-requests"><%- ic('inbox') %> Load requests<span class="cnt" id="lr-badge"<%= (typeof loadRequests!=='undefined'&&loadRequests>0)?'':' style=\"display:none\"' %>><%= (typeof loadRequests!=='undefined')?loadRequests:0 %></span></a>
       <% } %>
       <% if (has('loadboard')) { %>
       <a class="sb-link <%= A==='loadboard'?'active':'' %>" href="/admin/loadboard"><%- ic('list') %> Load board <span class="muted" style="font-size:10px;margin-left:auto">public</span></a>
@@ -301,6 +304,24 @@
   </aside>
   <div class="content">
     <button class="sb-toggle" onclick="document.body.classList.toggle('sb-open')">☰ Menu</button>
+<% if (has('dispatch')) { %>
+<script>
+  // Live load-request queue: poll every 15s, update the nav badge, pulse + retitle when a new one lands.
+  (function(){
+    var badge=document.getElementById('lr-badge'); var last=<%= (typeof loadRequests!=='undefined')?loadRequests:0 %>; var base=document.title;
+    function ping(){
+      fetch('/admin/load-requests/feed',{headers:{Accept:'application/json'}}).then(function(r){return r.json();}).then(function(d){
+        var n=d.count||0;
+        if(badge){ badge.textContent=n; badge.style.display=n>0?'':'none'; }
+        if(n>last){ document.title='('+n+') '+base; if(badge){ badge.classList.remove('pulsing'); void badge.offsetWidth; badge.classList.add('pulsing'); } }
+        else if(n===0){ document.title=base; }
+        last=n;
+      }).catch(function(){});
+    }
+    setInterval(ping, 15000);
+  })();
+</script>
+<% } %>
     <main class="<%= (typeof wide!=='undefined'&&wide)?'wide':'' %>">
 <% } else { %>
     <main>

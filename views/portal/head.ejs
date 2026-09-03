@@ -51,7 +51,11 @@
   .field{margin-bottom:14px}
   .field label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:5px}
   .field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:8px;font:inherit}
-  .status{display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+  .status{display:inline-block;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap}
+  @media (max-width: 760px){
+    main{padding:22px 16px 48px}
+    [style*="grid-template-columns:1.5fr 1fr"],[style*="grid-template-columns: 1.5fr 1fr"]{grid-template-columns:1fr !important}
+  }
   .status.pending{background:rgba(224,176,96,.16);color:var(--warn)}
   .status.under_review{background:rgba(127,176,224,.16);color:var(--info)}
   .status.needs_info{background:rgba(224,85,85,.16);color:var(--danger)}

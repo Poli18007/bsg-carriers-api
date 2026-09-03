@@ -40,11 +40,11 @@
       <h2 style="margin:0">Your loads</h2>
       <a href="/portal/loads" style="font-size:13px">View all →</a>
     </div>
-    <div class="panel" style="padding:0">
+    <div class="panel" style="padding:0;overflow-x:auto">
       <% if (!upcoming.length) { %>
         <p class="muted" style="padding:22px;text-align:center;margin:0">No loads assigned yet. Your dispatcher will post them here as they're booked.</p>
       <% } else { %>
-      <table style="width:100%;border-collapse:collapse">
+      <table style="width:100%;min-width:480px;border-collapse:collapse">
         <thead><tr>
           <th style="text-align:left;padding:11px 15px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--line)">Load</th>
           <th style="text-align:left;padding:11px 15px;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--line)">Lane</th>
@@ -54,9 +54,9 @@
         </tr></thead>
         <tbody>
           <% upcoming.forEach(function(l){ %>
-          <tr style="cursor:pointer" onclick="location.href='/portal/loads/<%= l.id %>'" onmouseover="this.style.background='var(--panel)'" onmouseout="this.style.background=''">
+          <tr style="cursor:pointer" onclick="location.href='/portal/loads/<%= l.id %>'" onmouseover="this.style.background='rgba(255,255,255,.035)'" onmouseout="this.style.background=''">
             <td style="padding:12px 15px;border-bottom:1px solid var(--line)"><strong><%= l.ref||('#'+l.id) %></strong></td>
-            <td style="padding:12px 15px;border-bottom:1px solid var(--line)"><%= l.origin||'—' %> <span class="muted">→</span> <%= l.destination||'—' %></td>
+            <td style="padding:12px 15px;border-bottom:1px solid var(--line)"><% if (l.origin || l.destination) { %><%= l.origin||'—' %> <span class="muted">→</span> <%= l.destination||'—' %><% } else { %><span class="muted">—</span><% } %></td>
             <td style="padding:12px 15px;border-bottom:1px solid var(--line)" class="muted"><%= day(l.pickup_date) %></td>
             <td style="padding:12px 15px;border-bottom:1px solid var(--line)"><span class="status <%= catTag(l.category) %>"><%= l.col_name || l.status %></span></td>
             <td style="padding:12px 15px;border-bottom:1px solid var(--line);text-align:right"><%= money(l.rate) %></td>

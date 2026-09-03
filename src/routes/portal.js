@@ -341,4 +341,33 @@ router.get('/invoices/:id', async (req, res) => {
   res.render('invoice-print', { inv, lines, t: { total, paid, balance: Math.round((total - paid) * 100) / 100 } });
 });
 
+// --- Public load board inside the portal ------------------------------------
+// The same curated available loads shown on the marketing site; a signed-in
+// carrier can request one and it alerts the dispatch desk.
+router.get('/loadboard', async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT id, origin, destination, rate, equipment, miles, weight, pickup_date, notes, live_unload
+       FROM board_loads WHERE status='active' ORDER BY sort, created_at DESC LIMIT 100`);
+  res.render('portal/loadboard', { carrier: { ...req.session.carrier }, rows, csrfToken: req.csrfToken(), notice: req.query.notice || null });
+});
+
+router.post('/loadboard/:id/request', async (req, res) => {
+  try {
+    const [rows] = await pool.query("SELECT origin, destination, rate FROM board_loads WHERE id=? AND status='active' LIMIT 1", [req.params.id]);
+    const l = rows[0];
+    if (l) {
+      staffAlert('Carrier requested a load', [
+        ['Company', req.session.carrier.company_name], ['Email', req.session.carrier.email],
+        ['Phone', req.session.carrier.phone || '—'],
+        ['Lane', (l.origin || '?') + ' → ' + (l.destination || '?')],
+        ['Rate', l.rate != null ? ('$' + Number(l.rate).toLocaleString()) : 'Call for rate'],
+      ]);
+    }
+    res.redirect('/portal/loadboard?notice=' + encodeURIComponent('Request sent — a dispatcher will reach out to confirm this load.'));
+  } catch (e) {
+    console.error('[portal] load request error:', e.message);
+    res.redirect('/portal/loadboard?notice=' + encodeURIComponent('Could not send the request — please call your dispatcher.'));
+  }
+});
+
 module.exports = router;

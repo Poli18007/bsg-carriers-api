@@ -1,0 +1,40 @@
+<% var title='Load board — BSG Carriers'; var active='loadboard';
+   function money(n){ return n==null||n===''?null:'$'+Number(n).toLocaleString(undefined,{maximumFractionDigits:0}); }
+   function day(x){ return x? new Date(x).toLocaleDateString(undefined,{month:'short',day:'numeric'}) : null; } %>
+<%- include('head', { title: title, active: active }) %>
+
+<% if (notice) { %><div class="notice"><%= notice %></div><% } %>
+
+<h1>Available loads</h1>
+<p class="sub">Loads we're moving right now. See one that fits your truck? Request it and a dispatcher will confirm.</p>
+
+<% if (!rows.length) { %>
+  <div class="panel" style="text-align:center;color:var(--muted)">No loads posted right now — new lanes go up daily. Check back soon, or call your dispatcher.</div>
+<% } else { %>
+<div style="display:flex;flex-direction:column;gap:10px">
+  <% rows.forEach(function(l){ var rate=money(l.rate); %>
+    <div class="panel" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:16px 18px">
+      <div style="flex:1 1 240px;min-width:0">
+        <div style="font-weight:700;font-size:15px;color:var(--text)"><%= l.origin %> <span style="color:var(--gold)">&rarr;</span> <%= l.destination %></div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-top:5px">
+          <% if (l.equipment) { %><span class="status available"><%= l.equipment %></span><% } %>
+          <% if (l.live_unload) { %><span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#e06666"><span style="width:7px;height:7px;border-radius:50%;background:#e06666;display:inline-block"></span>Live unload</span><% } %>
+          <% if (day(l.pickup_date)) { %><span class="muted" style="font-size:12px">PU <%= day(l.pickup_date) %></span><% } %>
+          <% if (l.miles) { %><span class="muted" style="font-size:12px"><%= Number(l.miles).toLocaleString() %> mi</span><% } %>
+          <% if (l.notes) { %><span class="muted" style="font-size:12px"><%= l.notes %></span><% } %>
+        </div>
+      </div>
+      <div style="font-family:var(--font-mono);font-size:20px;font-weight:800;color:var(--gold);white-space:nowrap;text-align:right">
+        <% if (rate) { %><%= rate %><% } else { %><span class="muted" style="font-size:14px">Call for rate</span><% } %>
+      </div>
+      <form method="post" action="/portal/loadboard/<%= l.id %>/request" style="margin:0">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="btn gold" type="submit">Request this load &rarr;</button>
+      </form>
+    </div>
+  <% }) %>
+</div>
+<p class="muted" style="font-size:12px;margin-top:14px">Loads change constantly and are subject to availability. Rates shown are line-haul and were current when posted.</p>
+<% } %>
+
+<%- include('foot') %>

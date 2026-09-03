@@ -613,3 +613,33 @@ CREATE TABLE IF NOT EXISTS load_requests (
   created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_load_requests_status ON load_requests (status, created_at DESC);
+
+-- ===========================================================================
+-- Driver app — drivers log in from the mobile app (phone/email + password, or
+-- an SMS one-time code). Token-based (JWT) API, separate from the cookie
+-- sessions used by admin/portal.
+-- ===========================================================================
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS app_active BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE drivers ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;
+
+-- SMS one-time codes (hashed). Short-lived; a handful of attempts allowed.
+CREATE TABLE IF NOT EXISTS driver_otps (
+  id         BIGSERIAL PRIMARY KEY,
+  phone      TEXT NOT NULL,
+  code_hash  TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  attempts   INTEGER NOT NULL DEFAULT 0,
+  used       BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_driver_otps_phone ON driver_otps (phone, created_at DESC);
+
+-- Expo push tokens per driver (one device row each).
+CREATE TABLE IF NOT EXISTS driver_push_tokens (
+  driver_id  INTEGER NOT NULL REFERENCES drivers(id) ON DELETE CASCADE,
+  token      TEXT NOT NULL,
+  platform   TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (driver_id, token)
+);

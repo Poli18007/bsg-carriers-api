@@ -141,6 +141,17 @@ router.post('/drivers/:id/remove', async (req, res) => {
   res.redirect('/admin/carriers/' + encodeURIComponent(rows[0] ? rows[0].carrier_id : ''));
 });
 
+// Set a driver's app password so they can sign into the mobile driver app.
+router.post('/drivers/:id/app-password', async (req, res) => {
+  const pw = String((req.body || {}).password || '').trim();
+  const [rows] = await pool.query('SELECT carrier_id FROM drivers WHERE id = ?', [req.params.id]);
+  if (pw.length >= 4) {
+    const { hashPassword } = require('../lib/driver-auth');
+    await pool.query('UPDATE drivers SET password_hash = ?, app_active = true WHERE id = ?', [await hashPassword(pw), req.params.id]);
+  }
+  res.redirect('/admin/carriers/' + encodeURIComponent(rows[0] ? rows[0].carrier_id : '') + '?notice=' + encodeURIComponent('Driver app password set.'));
+});
+
 // ---- Loads: board (table) --------------------------------------------------
 router.get('/loads', async (req, res) => {
   const board = await getBoard('loads');

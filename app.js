@@ -35,6 +35,7 @@ const reportsRouter = require('./src/routes/reports');
 const settingsRouter = require('./src/routes/settings');
 const hrRouter = require('./src/routes/hr');
 const loadboardRouter = require('./src/routes/loadboard');
+const driverRouter = require('./src/routes/driver');
 const { pool: dbPool } = require('./src/db');
 const perms = require('./src/lib/perms');
 const portalRouter = require('./src/routes/portal');
@@ -94,6 +95,9 @@ app.get('/loadboard', cors({ origin: true, methods: ['GET'] }), async (req, res)
     res.status(500).json({ ok: false, loads: [] });
   }
 });
+
+// --- Driver app API (token-auth, JSON, CORS-open for the mobile app) ---------
+app.use('/api/driver', cors({ origin: true, methods: ['GET', 'POST'] }), driverRouter);
 
 // --- Sessions + admin -------------------------------------------------------
 // Cookie-based sessions (signed, no server-side store) — the right fit for

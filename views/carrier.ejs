@@ -89,7 +89,12 @@
           <% if(d.email){ %> · <%= d.email %><% } %>
           <% if(d.cdl_number){ %> · CDL <%= d.cdl_number %><%= d.cdl_state?' ('+d.cdl_state+')':'' %><% } %>
         </div></div>
-      <form method="post" action="/admin/drivers/<%= d.id %>/remove" style="margin:0 0 0 auto"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit"><%= d.active?'Deactivate':'Reactivate' %></button></form>
+      <form method="post" action="/admin/drivers/<%= d.id %>/app-password" style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center" title="Set this driver's password for the mobile app">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input name="password" placeholder="app password" style="width:120px;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:6px 8px;border-radius:7px;font-size:12px">
+        <button class="btn sm" type="submit"><%= d.password_hash?'Reset':'Set' %> app login</button>
+      </form>
+      <form method="post" action="/admin/drivers/<%= d.id %>/remove" style="margin:0"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn sm" type="submit"><%= d.active?'Deactivate':'Reactivate' %></button></form>
     </div>
   <% }) %>
   <form method="post" action="/admin/carriers/<%= c.id %>/drivers" style="display:grid;grid-template-columns:1.4fr 1fr 1.4fr .8fr .5fr auto;gap:8px;align-items:end;margin-top:12px">
